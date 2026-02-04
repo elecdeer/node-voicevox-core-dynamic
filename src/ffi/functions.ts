@@ -5,7 +5,6 @@
  */
 
 import type { IKoffiLib } from "koffi";
-import type * as types from "./types.js";
 
 /**
  * C API関数群
