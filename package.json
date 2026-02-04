@@ -1,23 +1,43 @@
 {
   "name": "node-voicevox-core-dynamic",
   "version": "1.0.0",
-  "description": "",
-  "keywords": [],
+  "description": "Node.js binding for voicevox_core using koffi",
+  "keywords": ["voicevox", "tts", "speech-synthesis", "ffi", "koffi"],
   "license": "MIT",
   "author": "elecdeer",
-  "main": "index.js",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "build": "tsc",
     "lint": "oxlint --type-aware --type-check",
     "lint:fix": "oxlint --type-aware --type-check --fix-suggestions",
     "format": "oxfmt",
-    "format:check": "oxfmt --check"
+    "format:check": "oxfmt --check",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "koffi": "^2.9.1"
   },
   "devDependencies": {
     "@typescript/native-preview": "^7.0.0-dev.20260204.1",
+    "@types/node": "^22.10.6",
     "oxfmt": "^0.28.0",
     "oxlint": "^1.43.0",
     "oxlint-tsgolint": "^0.11.4",
-    "tsdown": "^0.20.1"
+    "tsdown": "^0.20.1",
+    "typescript": "^5.7.3",
+    "vitest": "^3.1.2"
   },
   "devEngines": {
     "runtime": {
