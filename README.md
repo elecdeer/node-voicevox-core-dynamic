@@ -27,6 +27,8 @@ You need to download voicevox_core library separately:
 
 ## Usage
 
+> 💡 **More examples**: See the [examples/](./examples) directory for more detailed usage examples including AudioQuery manipulation, GPU mode, and multiple model management.
+
 ### Basic Example
 
 ```typescript

@@ -1,0 +1,86 @@
+/**
+ * 基本的な使用例
+ *
+ * 環境変数VOICEVOX_CORE_LIB_PATHを設定してから実行してください。
+ * 例: VOICEVOX_CORE_LIB_PATH=./voicevox/voicevox_core/c_api/lib/libvoicevox_core.dylib pnpm tsx examples/basic.ts
+ */
+
+import {
+	loadOnnxruntime,
+	createOpenJtalk,
+	createSynthesizer,
+	openVoiceModelFile,
+	loadVoiceModel,
+	tts,
+	deleteSynthesizer,
+	deleteOpenJtalk,
+	closeVoiceModelFile,
+	getVersion,
+} from "../src/index.js";
+import { writeFile } from "node:fs/promises";
+
+async function main() {
+	console.log("🎤 VOICEVOX CORE Node.js Binding Example");
+	console.log(`📦 Version: ${getVersion()}\n`);
+
+	// 環境変数チェック
+	if (!process.env.VOICEVOX_CORE_LIB_PATH) {
+		console.error("❌ VOICEVOX_CORE_LIB_PATH environment variable is not set");
+		console.error(
+			"Example: VOICEVOX_CORE_LIB_PATH=./voicevox/voicevox_core/c_api/lib/libvoicevox_core.dylib",
+		);
+		process.exit(1);
+	}
+
+	console.log("⚙️  Initializing...");
+
+	// ONNX Runtimeをロード
+	const onnxruntime = loadOnnxruntime();
+	console.log("✅ ONNX Runtime loaded");
+
+	// OpenJTalkを初期化
+	const openJtalk = createOpenJtalk("./voicevox/voicevox_core/dict");
+	console.log("✅ OpenJTalk initialized");
+
+	// シンセサイザを作成
+	const synthesizer = createSynthesizer(onnxruntime, openJtalk);
+	console.log("✅ Synthesizer created");
+
+	// 音声モデルをロード
+	console.log("\n📥 Loading voice model...");
+	const model = openVoiceModelFile(
+		"./voicevox/voicevox_core/models/0.vvm",
+	);
+	loadVoiceModel(synthesizer, model);
+	console.log("✅ Voice model loaded");
+
+	// モデルファイルは閉じてOK（内部でコピーされている）
+	closeVoiceModelFile(model);
+
+	// 音声合成
+	console.log("\n🎵 Synthesizing speech...");
+	const text = "こんにちは、VOICEVOXです。";
+	const styleId = 0; // スタイルID（モデルによって異なる）
+
+	console.log(`📝 Text: ${text}`);
+	console.log(`🎨 Style ID: ${styleId}`);
+
+	const wav = tts(synthesizer, text, styleId);
+	console.log(`✅ Generated ${wav.length} bytes of WAV data`);
+
+	// WAVファイルに保存
+	const outputPath = "output.wav";
+	await writeFile(outputPath, wav);
+	console.log(`💾 Saved to ${outputPath}`);
+
+	// クリーンアップ
+	console.log("\n🧹 Cleaning up...");
+	deleteSynthesizer(synthesizer);
+	deleteOpenJtalk(openJtalk);
+	console.log("✅ Done!");
+}
+
+main().catch((error) => {
+	console.error("❌ Error:", error);
+	process.exit(1);
+});
