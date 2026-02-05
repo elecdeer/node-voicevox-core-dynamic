@@ -3,26 +3,26 @@
   "version": "1.0.0",
   "description": "Node.js binding for voicevox_core using koffi",
   "keywords": [
-    "voicevox",
-    "tts",
-    "speech-synthesis",
     "ffi",
-    "koffi"
+    "koffi",
+    "speech-synthesis",
+    "tts",
+    "voicevox"
   ],
   "license": "MIT",
   "author": "elecdeer",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "types": "./dist/index.d.mts"
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
     }
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "tsdown",
     "lint": "oxlint --type-aware --type-check",

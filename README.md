@@ -42,25 +42,25 @@ import {
   closeVoiceModelFile,
   loadVoiceModel,
   tts,
-} from 'node-voicevox-core-dynamic';
-import { writeFile } from 'fs/promises';
+} from "node-voicevox-core-dynamic";
+import { writeFile } from "fs/promises";
 
 // Set library path (or use environment variable)
-process.env.VOICEVOX_CORE_LIB_PATH = './voicevox/voicevox_core/c_api/lib/libvoicevox_core.dylib';
+process.env.VOICEVOX_CORE_LIB_PATH = "./voicevox/voicevox_core/c_api/lib/libvoicevox_core.dylib";
 
 // Initialize
 const onnxruntime = loadOnnxruntime();
-const openJtalk = createOpenJtalk('./voicevox/voicevox_core/dict');
+const openJtalk = createOpenJtalk("./voicevox/voicevox_core/dict");
 const synthesizer = createSynthesizer(onnxruntime, openJtalk);
 
 // Load voice model
-const model = openVoiceModelFile('./voicevox/voicevox_core/models/sample.vvm');
+const model = openVoiceModelFile("./voicevox/voicevox_core/models/sample.vvm");
 loadVoiceModel(synthesizer, model);
 closeVoiceModelFile(model); // Can be closed after loading
 
 // Text-to-Speech
-const wav = tts(synthesizer, 'こんにちは', 0);
-await writeFile('output.wav', wav);
+const wav = tts(synthesizer, "こんにちは", 0);
+await writeFile("output.wav", wav);
 
 // Cleanup
 deleteSynthesizer(synthesizer);
@@ -71,14 +71,10 @@ deleteOpenJtalk(openJtalk);
 ### AudioQuery Example
 
 ```typescript
-import {
-  createAudioQuery,
-  synthesis,
-  VoicevoxAccelerationMode,
-} from 'node-voicevox-core-dynamic';
+import { createAudioQuery, synthesis, VoicevoxAccelerationMode } from "node-voicevox-core-dynamic";
 
 // Create AudioQuery from text
-const audioQuery = createAudioQuery(synthesizer, 'こんにちは', 0);
+const audioQuery = createAudioQuery(synthesizer, "こんにちは", 0);
 
 // Modify AudioQuery (optional)
 audioQuery.speedScale = 1.2;
@@ -93,7 +89,7 @@ const wav = synthesis(synthesizer, audioQuery, 0, {
 ### GPU Mode
 
 ```typescript
-import { VoicevoxAccelerationMode } from 'node-voicevox-core-dynamic';
+import { VoicevoxAccelerationMode } from "node-voicevox-core-dynamic";
 
 const synthesizer = createSynthesizer(onnxruntime, openJtalk, {
   accelerationMode: VoicevoxAccelerationMode.Gpu,
@@ -102,7 +98,7 @@ const synthesizer = createSynthesizer(onnxruntime, openJtalk, {
 
 // Check if GPU mode is active
 if (isGpuMode(synthesizer)) {
-  console.log('GPU mode is enabled');
+  console.log("GPU mode is enabled");
 }
 ```
 
@@ -178,6 +174,7 @@ if (isGpuMode(synthesizer)) {
 - `VOICEVOX_CORE_LIB_PATH` - Path to voicevox_core dynamic library
 
 If not set, the library will try to load from system paths using platform-specific default names:
+
 - macOS: `libvoicevox_core.dylib`
 - Windows: `voicevox_core.dll`
 - Linux: `libvoicevox_core.so`

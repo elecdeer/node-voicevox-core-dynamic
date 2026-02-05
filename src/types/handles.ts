@@ -15,9 +15,9 @@ declare const VoiceModelFileHandleBrand: unique symbol;
  * シングルトンインスタンスへの参照
  */
 export type OnnxruntimeHandle = {
-	readonly [OnnxruntimeHandleBrand]: never;
-	/** @internal */
-	readonly _ptr: unknown;
+  readonly [OnnxruntimeHandleBrand]: never;
+  /** @internal */
+  readonly _ptr: unknown;
 };
 
 /**
@@ -26,9 +26,9 @@ export type OnnxruntimeHandle = {
  * テキスト解析器への参照
  */
 export type OpenJtalkHandle = {
-	readonly [OpenJtalkHandleBrand]: never;
-	/** @internal */
-	readonly _ptr: unknown;
+  readonly [OpenJtalkHandleBrand]: never;
+  /** @internal */
+  readonly _ptr: unknown;
 };
 
 /**
@@ -37,9 +37,9 @@ export type OpenJtalkHandle = {
  * 音声シンセサイザへの参照
  */
 export type SynthesizerHandle = {
-	readonly [SynthesizerHandleBrand]: never;
-	/** @internal */
-	readonly _ptr: unknown;
+  readonly [SynthesizerHandleBrand]: never;
+  /** @internal */
+  readonly _ptr: unknown;
 };
 
 /**
@@ -48,7 +48,7 @@ export type SynthesizerHandle = {
  * VVMファイルへの参照
  */
 export type VoiceModelFileHandle = {
-	readonly [VoiceModelFileHandleBrand]: never;
-	/** @internal */
-	readonly _ptr: unknown;
+  readonly [VoiceModelFileHandleBrand]: never;
+  /** @internal */
+  readonly _ptr: unknown;
 };

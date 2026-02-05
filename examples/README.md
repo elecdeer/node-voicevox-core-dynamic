@@ -24,6 +24,7 @@ pnpm tsx examples/basic.ts
 ```
 
 **学べること:**
+
 - ONNX Runtimeのロード
 - OpenJTalkの初期化
 - シンセサイザの作成
@@ -40,6 +41,7 @@ pnpm tsx examples/audio-query.ts
 ```
 
 **学べること:**
+
 - AudioQueryの生成
 - 話速・音高・抑揚・音量の調整
 - AudioQueryからの音声合成
@@ -54,6 +56,7 @@ pnpm tsx examples/gpu-mode.ts
 ```
 
 **学べること:**
+
 - GPUモードの有効化
 - サポートされているデバイスの確認
 - GPUモードの判定
@@ -68,6 +71,7 @@ pnpm tsx examples/multiple-models.ts
 ```
 
 **学べること:**
+
 - 複数モデルのロード
 - モデルIDの取得
 - モデルのメタ情報取得
@@ -102,6 +106,7 @@ Error: dlopen(...): Library not loaded
 ```
 
 **解決方法:**
+
 - `VOICEVOX_CORE_LIB_PATH`環境変数が正しく設定されているか確認
 - ライブラリファイルが実際に存在するか確認
 - パスが絶対パスまたは正しい相対パスになっているか確認
@@ -113,6 +118,7 @@ VoicevoxError [1]: open_jtalk辞書ファイルが読み込まれていない
 ```
 
 **解決方法:**
+
 - OpenJTalk辞書ディレクトリのパスが正しいか確認
 - `./voicevox/voicevox_core/dict`に辞書ファイルが存在するか確認
 
@@ -123,6 +129,7 @@ Error: ENOENT: no such file or directory
 ```
 
 **解決方法:**
+
 - VVMファイルのパスが正しいか確認
 - `./voicevox/voicevox_core/models/`にVVMファイルが存在するか確認
 

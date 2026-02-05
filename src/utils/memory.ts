@@ -15,12 +15,12 @@ import type { IKoffiLib } from "koffi";
  * @param jsonPtr - JSON文字列ポインタ
  */
 export function freeJson(lib: IKoffiLib, jsonPtr: unknown): void {
-	if (jsonPtr == null) {
-		return;
-	}
+  if (jsonPtr == null) {
+    return;
+  }
 
-	const voicevox_json_free = lib.func("void voicevox_json_free(char *json)");
-	voicevox_json_free(jsonPtr);
+  const voicevox_json_free = lib.func("void voicevox_json_free(char *json)");
+  voicevox_json_free(jsonPtr);
 }
 
 /**
@@ -32,10 +32,10 @@ export function freeJson(lib: IKoffiLib, jsonPtr: unknown): void {
  * @param wavPtr - WAVデータポインタ
  */
 export function freeWav(lib: IKoffiLib, wavPtr: unknown): void {
-	if (wavPtr == null) {
-		return;
-	}
+  if (wavPtr == null) {
+    return;
+  }
 
-	const voicevox_wav_free = lib.func("void voicevox_wav_free(uint8 *wav)");
-	voicevox_wav_free(wavPtr);
+  const voicevox_wav_free = lib.func("void voicevox_wav_free(uint8 *wav)");
+  voicevox_wav_free(wavPtr);
 }

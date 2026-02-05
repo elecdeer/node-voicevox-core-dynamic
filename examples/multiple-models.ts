@@ -5,97 +5,105 @@
  */
 
 import {
-	loadOnnxruntime,
-	createOpenJtalk,
-	createSynthesizer,
-	openVoiceModelFile,
-	loadVoiceModel,
-	unloadVoiceModel,
-	isLoadedVoiceModel,
-	getVoiceModelId,
-	getVoiceModelMetasJson,
-	getSynthesizerMetasJson,
-	tts,
-	deleteSynthesizer,
-	deleteOpenJtalk,
-	closeVoiceModelFile,
+  loadOnnxruntime,
+  createOpenJtalk,
+  createSynthesizer,
+  openVoiceModelFile,
+  loadVoiceModel,
+  unloadVoiceModel,
+  isLoadedVoiceModel,
+  getVoiceModelId,
+  getVoiceModelMetasJson,
+  getSynthesizerMetasJson,
+  tts,
+  deleteSynthesizer,
+  deleteOpenJtalk,
+  closeVoiceModelFile,
 } from "../src/index.js";
 import { writeFile } from "node:fs/promises";
 
 async function main() {
-	console.log("🎤 Multiple Models Example\n");
+  console.log("🎤 Multiple Models Example\n");
 
-	// 環境変数チェック
-	if (!process.env.VOICEVOX_CORE_LIB_PATH) {
-		console.error("❌ VOICEVOX_CORE_LIB_PATH environment variable is not set");
-		process.exit(1);
-	}
+  // 環境変数チェック
+  if (!process.env.VOICEVOX_CORE_LIB_PATH) {
+    console.error("❌ VOICEVOX_CORE_LIB_PATH environment variable is not set");
+    process.exit(1);
+  }
 
-	// 初期化
-	console.log("⚙️  Initializing...");
-	const onnxruntime = loadOnnxruntime();
-	const openJtalk = createOpenJtalk("./voicevox/voicevox_core/dict");
-	const synthesizer = createSynthesizer(onnxruntime, openJtalk);
-	console.log("✅ Initialized\n");
+  if (!process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH) {
+    console.error("❌ VOICEVOX_ONNXRUNTIME_LIB_PATH environment variable is not set");
+    process.exit(1);
+  }
 
-	// モデル1をロード
-	console.log("📥 Loading model 1...");
-	const model1 = openVoiceModelFile(
-		"./voicevox/voicevox_core/models/0.vvm",
-	);
-	const model1Id = getVoiceModelId(model1);
-	const model1Meta = getVoiceModelMetasJson(model1);
-	console.log(`📋 Model 1 ID: ${Buffer.from(model1Id).toString("hex")}`);
-	console.log(`📋 Model 1 Meta:`, JSON.parse(model1Meta));
+  console.log(`🛠️  Using VOICEVOX_CORE_LIB_PATH: ${process.env.VOICEVOX_CORE_LIB_PATH}`);
+  console.log(
+    `🛠️  Using VOICEVOX_ONNXRUNTIME_LIB_PATH: ${process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH}\n`,
+  );
 
-	loadVoiceModel(synthesizer, model1);
-	closeVoiceModelFile(model1);
-	console.log("✅ Model 1 loaded");
+  // 初期化
+  console.log("⚙️  Initializing...");
+  const onnxruntime = loadOnnxruntime({
+    filename: process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH,
+  });
+  const openJtalk = createOpenJtalk("./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11");
+  const synthesizer = createSynthesizer(onnxruntime, openJtalk);
+  console.log("✅ Initialized\n");
 
-	// ロード済みモデルの確認
-	console.log("\n📊 Checking loaded models...");
-	const isModel1Loaded = isLoadedVoiceModel(synthesizer, model1Id);
-	console.log(`Model 1 is loaded: ${isModel1Loaded}`);
+  // モデル1をロード
+  console.log("📥 Loading model 1...");
+  const model1 = openVoiceModelFile("./voicevox/voicevox_core/models/vvms/0.vvm");
+  const model1Id = getVoiceModelId(model1);
+  const model1Meta = getVoiceModelMetasJson(model1);
+  console.log(`📋 Model 1 ID: ${Buffer.from(model1Id).toString("hex")}`);
+  console.log(`📋 Model 1 Meta:`, JSON.parse(model1Meta));
 
-	// シンセサイザのメタ情報を確認
-	const synthesizerMetas = getSynthesizerMetasJson(synthesizer);
-	console.log("📋 Synthesizer metas:", JSON.parse(synthesizerMetas));
+  loadVoiceModel(synthesizer, model1);
+  closeVoiceModelFile(model1);
+  console.log("✅ Model 1 loaded");
 
-	// モデル1で音声合成
-	console.log("\n🎵 Synthesizing with model 1...");
-	const text1 = "これはモデル1の音声です。";
-	const wav1 = tts(synthesizer, text1, 0);
-	await writeFile("output_model1.wav", wav1);
-	console.log(`💾 Saved to output_model1.wav`);
+  // ロード済みモデルの確認
+  console.log("\n📊 Checking loaded models...");
+  const isModel1Loaded = isLoadedVoiceModel(synthesizer, model1Id);
+  console.log(`Model 1 is loaded: ${isModel1Loaded}`);
 
-	// モデル1をアンロード
-	console.log("\n🗑️  Unloading model 1...");
-	unloadVoiceModel(synthesizer, model1Id);
-	const isModel1LoadedAfter = isLoadedVoiceModel(synthesizer, model1Id);
-	console.log(`Model 1 is loaded: ${isModel1LoadedAfter}`);
-	console.log("✅ Model 1 unloaded");
+  // シンセサイザのメタ情報を確認
+  const synthesizerMetas = getSynthesizerMetasJson(synthesizer);
+  console.log("📋 Synthesizer metas:", JSON.parse(synthesizerMetas));
 
-	// 複数モデルを同時にロードすることも可能
-	console.log("\n📥 Loading multiple models...");
-	const modelA = openVoiceModelFile(
-		"./voicevox/voicevox_core/models/0.vvm",
-	);
-	loadVoiceModel(synthesizer, modelA);
-	closeVoiceModelFile(modelA);
-	console.log("✅ Model A loaded");
+  // モデル1で音声合成
+  console.log("\n🎵 Synthesizing with model 1...");
+  const text1 = "これはモデル1の音声です。";
+  const wav1 = tts(synthesizer, text1, 0);
+  await writeFile("output_model1.wav", wav1);
+  console.log(`💾 Saved to output_model1.wav`);
 
-	// 注: 実際に複数のモデルを使用するには、異なるVVMファイルが必要です
-	// この例では同じファイルを使用していますが、実際のユースケースでは
-	// 異なるキャラクターやスタイルのモデルをロードします
+  // モデル1をアンロード
+  console.log("\n🗑️  Unloading model 1...");
+  unloadVoiceModel(synthesizer, model1Id);
+  const isModel1LoadedAfter = isLoadedVoiceModel(synthesizer, model1Id);
+  console.log(`Model 1 is loaded: ${isModel1LoadedAfter}`);
+  console.log("✅ Model 1 unloaded");
 
-	// クリーンアップ
-	console.log("\n🧹 Cleaning up...");
-	deleteSynthesizer(synthesizer);
-	deleteOpenJtalk(openJtalk);
-	console.log("✅ Done!");
+  // 複数モデルを同時にロードすることも可能
+  console.log("\n📥 Loading multiple models...");
+  const modelA = openVoiceModelFile("./voicevox/voicevox_core/models/vvms/0.vvm");
+  loadVoiceModel(synthesizer, modelA);
+  closeVoiceModelFile(modelA);
+  console.log("✅ Model A loaded");
+
+  // 注: 実際に複数のモデルを使用するには、異なるVVMファイルが必要です
+  // この例では同じファイルを使用していますが、実際のユースケースでは
+  // 異なるキャラクターやスタイルのモデルをロードします
+
+  // クリーンアップ
+  console.log("\n🧹 Cleaning up...");
+  deleteSynthesizer(synthesizer);
+  deleteOpenJtalk(openJtalk);
+  console.log("✅ Done!");
 }
 
 main().catch((error) => {
-	console.error("❌ Error:", error);
-	process.exit(1);
+  console.error("❌ Error:", error);
+  process.exit(1);
 });

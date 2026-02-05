@@ -16,11 +16,11 @@ let cachedFunctions: ReturnType<typeof declareFunctions> | null = null;
  * FFI関数を取得（キャッシュ）
  */
 function getFunctions() {
-	if (!cachedFunctions) {
-		const lib = loadLibrary();
-		cachedFunctions = declareFunctions(lib);
-	}
-	return cachedFunctions;
+  if (!cachedFunctions) {
+    const lib = loadLibrary();
+    cachedFunctions = declareFunctions(lib);
+  }
+  return cachedFunctions;
 }
 
 /**
@@ -32,39 +32,34 @@ function getFunctions() {
  * @returns ONNX Runtimeハンドル
  * @throws {VoicevoxError} ロードに失敗した場合
  */
-export function loadOnnxruntime(
-	options?: LoadOnnxruntimeOptions,
-): OnnxruntimeHandle {
-	const functions = getFunctions();
+export function loadOnnxruntime(options?: LoadOnnxruntimeOptions): OnnxruntimeHandle {
+  const functions = getFunctions();
 
-	const defaultOptions =
-		functions.voicevox_make_default_load_onnxruntime_options() as {
-			filename: string;
-		};
+  const defaultOptions = functions.voicevox_make_default_load_onnxruntime_options() as {
+    filename: string;
+  };
 
-	const loadOptions = {
-		filename: options?.filename ?? defaultOptions.filename,
-	};
+  const loadOptions = {
+    filename: options?.filename ?? defaultOptions.filename,
+  };
 
-	const outOnnxruntime = [null];
-	const resultCode = functions.voicevox_onnxruntime_load_once(
-		loadOptions,
-		outOnnxruntime,
-	) as number;
+  const outOnnxruntime = [null];
+  const resultCode = functions.voicevox_onnxruntime_load_once(
+    loadOptions,
+    outOnnxruntime,
+  ) as number;
 
-	if (resultCode !== VoicevoxResultCode.Ok) {
-		const message = functions.voicevox_error_result_to_message(
-			resultCode,
-		) as string;
-		throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
-	}
+  if (resultCode !== VoicevoxResultCode.Ok) {
+    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
+  }
 
-	const handle = outOnnxruntime[0];
-	if (handle == null) {
-		throw new Error("Failed to load ONNX Runtime: null handle returned");
-	}
+  const handle = outOnnxruntime[0];
+  if (handle == null) {
+    throw new Error("Failed to load ONNX Runtime: null handle returned");
+  }
 
-	return handle as OnnxruntimeHandle;
+  return handle as OnnxruntimeHandle;
 }
 
 /**
@@ -75,14 +70,14 @@ export function loadOnnxruntime(
  * @returns ONNX Runtimeハンドル、またはnull
  */
 export function getOnnxruntime(): OnnxruntimeHandle | null {
-	const functions = getFunctions();
-	const onnxruntime = functions.voicevox_onnxruntime_get();
+  const functions = getFunctions();
+  const onnxruntime = functions.voicevox_onnxruntime_get();
 
-	if (onnxruntime == null) {
-		return null;
-	}
+  if (onnxruntime == null) {
+    return null;
+  }
 
-	return onnxruntime as OnnxruntimeHandle;
+  return onnxruntime as OnnxruntimeHandle;
 }
 
 /**
@@ -92,32 +87,27 @@ export function getOnnxruntime(): OnnxruntimeHandle | null {
  * @returns デバイス情報のJSON文字列
  * @throws {VoicevoxError} 情報取得に失敗した場合
  */
-export function getOnnxruntimeSupportedDevicesJson(
-	onnxruntime: OnnxruntimeHandle,
-): string {
-	const functions = getFunctions();
-	const lib = loadLibrary();
+export function getOnnxruntimeSupportedDevicesJson(onnxruntime: OnnxruntimeHandle): string {
+  const functions = getFunctions();
+  const lib = loadLibrary();
 
-	const outJson = [null];
-	const resultCode =
-		functions.voicevox_onnxruntime_create_supported_devices_json(
-			onnxruntime,
-			outJson,
-		) as number;
+  const outJson = [null];
+  const resultCode = functions.voicevox_onnxruntime_create_supported_devices_json(
+    onnxruntime,
+    outJson,
+  ) as number;
 
-	if (resultCode !== VoicevoxResultCode.Ok) {
-		const message = functions.voicevox_error_result_to_message(
-			resultCode,
-		) as string;
-		throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
-	}
+  if (resultCode !== VoicevoxResultCode.Ok) {
+    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
+  }
 
-	const jsonPtr = outJson[0];
-	const jsonStr = koffi.decode(jsonPtr, "string") as string;
+  const jsonPtr = outJson[0];
+  const jsonStr = koffi.decode(jsonPtr, "string") as string;
 
-	freeJson(lib, jsonPtr);
+  freeJson(lib, jsonPtr);
 
-	return jsonStr;
+  return jsonStr;
 }
 
 /**
@@ -126,6 +116,6 @@ export function getOnnxruntimeSupportedDevicesJson(
  * @returns バージョン文字列
  */
 export function getVersion(): string {
-	const functions = getFunctions();
-	return functions.voicevox_get_version() as string;
+  const functions = getFunctions();
+  return functions.voicevox_get_version() as string;
 }

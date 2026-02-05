@@ -14,33 +14,25 @@ export const OpenJtalkRcOpaque = koffi.opaque("OpenJtalkRc");
 export const VoicevoxOnnxruntimeOpaque = koffi.opaque("VoicevoxOnnxruntime");
 export const VoicevoxSynthesizerOpaque = koffi.opaque("VoicevoxSynthesizer");
 export const VoicevoxUserDictOpaque = koffi.opaque("VoicevoxUserDict");
-export const VoicevoxVoiceModelFileOpaque = koffi.opaque(
-	"VoicevoxVoiceModelFile",
-);
+export const VoicevoxVoiceModelFileOpaque = koffi.opaque("VoicevoxVoiceModelFile");
 
 // ========================================
 // ポインタ型（Pointer Types）
 // ========================================
 
-export const OpenJtalkRcPtr = koffi.pointer(
-	"OpenJtalkRcPtr",
-	OpenJtalkRcOpaque,
-);
+export const OpenJtalkRcPtr = koffi.pointer("OpenJtalkRcPtr", OpenJtalkRcOpaque);
 export const VoicevoxOnnxruntimePtr = koffi.pointer(
-	"VoicevoxOnnxruntimePtr",
-	VoicevoxOnnxruntimeOpaque,
+  "VoicevoxOnnxruntimePtr",
+  VoicevoxOnnxruntimeOpaque,
 );
 export const VoicevoxSynthesizerPtr = koffi.pointer(
-	"VoicevoxSynthesizerPtr",
-	VoicevoxSynthesizerOpaque,
+  "VoicevoxSynthesizerPtr",
+  VoicevoxSynthesizerOpaque,
 );
-export const VoicevoxUserDictPtr = koffi.pointer(
-	"VoicevoxUserDictPtr",
-	VoicevoxUserDictOpaque,
-);
+export const VoicevoxUserDictPtr = koffi.pointer("VoicevoxUserDictPtr", VoicevoxUserDictOpaque);
 export const VoicevoxVoiceModelFilePtr = koffi.pointer(
-	"VoicevoxVoiceModelFilePtr",
-	VoicevoxVoiceModelFileOpaque,
+  "VoicevoxVoiceModelFilePtr",
+  VoicevoxVoiceModelFileOpaque,
 );
 
 // ========================================
@@ -50,54 +42,42 @@ export const VoicevoxVoiceModelFilePtr = koffi.pointer(
 /**
  * ONNX Runtimeロードオプション構造体
  */
-export const VoicevoxLoadOnnxruntimeOptionsStruct = koffi.struct(
-	"VoicevoxLoadOnnxruntimeOptions",
-	{
-		filename: "const char*",
-	},
-);
+export const VoicevoxLoadOnnxruntimeOptionsStruct = koffi.struct("VoicevoxLoadOnnxruntimeOptions", {
+  filename: "const char*",
+});
 
 /**
  * 初期化オプション構造体
  */
-export const VoicevoxInitializeOptionsStruct = koffi.struct(
-	"VoicevoxInitializeOptions",
-	{
-		acceleration_mode: "int32",
-		cpu_num_threads: "uint16",
-	},
-);
+export const VoicevoxInitializeOptionsStruct = koffi.struct("VoicevoxInitializeOptions", {
+  acceleration_mode: "int32",
+  cpu_num_threads: "uint16",
+});
 
 /**
  * 音声合成オプション構造体
  */
-export const VoicevoxSynthesisOptionsStruct = koffi.struct(
-	"VoicevoxSynthesisOptions",
-	{
-		enable_interrogative_upspeak: "bool",
-	},
-);
+export const VoicevoxSynthesisOptionsStruct = koffi.struct("VoicevoxSynthesisOptions", {
+  enable_interrogative_upspeak: "bool",
+});
 
 /**
  * TTSオプション構造体
  */
 export const VoicevoxTtsOptionsStruct = koffi.struct("VoicevoxTtsOptions", {
-	enable_interrogative_upspeak: "bool",
+  enable_interrogative_upspeak: "bool",
 });
 
 /**
  * ユーザー辞書単語構造体
  */
-export const VoicevoxUserDictWordStruct = koffi.struct(
-	"VoicevoxUserDictWord",
-	{
-		surface: "const char*",
-		pronunciation: "const char*",
-		accent_type: "uintptr_t",
-		word_type: "int32",
-		priority: "uint32",
-	},
-);
+export const VoicevoxUserDictWordStruct = koffi.struct("VoicevoxUserDictWord", {
+  surface: "const char*",
+  pronunciation: "const char*",
+  accent_type: "uintptr_t",
+  word_type: "int32",
+  priority: "uint32",
+});
 
 // ========================================
 // 型定義

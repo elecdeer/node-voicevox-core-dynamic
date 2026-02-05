@@ -14,11 +14,11 @@ let cachedFunctions: ReturnType<typeof declareFunctions> | null = null;
  * FFI関数を取得（キャッシュ）
  */
 function getFunctions() {
-	if (!cachedFunctions) {
-		const lib = loadLibrary();
-		cachedFunctions = declareFunctions(lib);
-	}
-	return cachedFunctions;
+  if (!cachedFunctions) {
+    const lib = loadLibrary();
+    cachedFunctions = declareFunctions(lib);
+  }
+  return cachedFunctions;
 }
 
 /**
@@ -29,27 +29,22 @@ function getFunctions() {
  * @throws {VoicevoxError} 構築に失敗した場合
  */
 export function createOpenJtalk(dictDir: string): OpenJtalkHandle {
-	const functions = getFunctions();
+  const functions = getFunctions();
 
-	const outOpenJtalk = [null];
-	const resultCode = functions.voicevox_open_jtalk_rc_new(
-		dictDir,
-		outOpenJtalk,
-	) as number;
+  const outOpenJtalk = [null];
+  const resultCode = functions.voicevox_open_jtalk_rc_new(dictDir, outOpenJtalk) as number;
 
-	if (resultCode !== VoicevoxResultCode.Ok) {
-		const message = functions.voicevox_error_result_to_message(
-			resultCode,
-		) as string;
-		throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
-	}
+  if (resultCode !== VoicevoxResultCode.Ok) {
+    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
+  }
 
-	const handle = outOpenJtalk[0];
-	if (handle == null) {
-		throw new Error("Failed to create OpenJtalk: null handle returned");
-	}
+  const handle = outOpenJtalk[0];
+  if (handle == null) {
+    throw new Error("Failed to create OpenJtalk: null handle returned");
+  }
 
-	return handle as OpenJtalkHandle;
+  return handle as OpenJtalkHandle;
 }
 
 /**
@@ -58,6 +53,6 @@ export function createOpenJtalk(dictDir: string): OpenJtalkHandle {
  * @param openJtalk - OpenJTalkハンドル
  */
 export function deleteOpenJtalk(openJtalk: OpenJtalkHandle): void {
-	const functions = getFunctions();
-	functions.voicevox_open_jtalk_rc_delete(openJtalk);
+  const functions = getFunctions();
+  functions.voicevox_open_jtalk_rc_delete(openJtalk);
 }
