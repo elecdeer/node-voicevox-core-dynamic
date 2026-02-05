@@ -47,22 +47,25 @@ async function main() {
 
   // 初期化
   console.log("⚙️  Initializing...");
-  const onnxruntime = loadOnnxruntime(functions, {
+  const onnxruntime = await loadOnnxruntime(functions, {
     filename: process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH,
   });
-  const openJtalk = createOpenJtalk(functions, "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11");
-  const synthesizer = createSynthesizer(functions, onnxruntime, openJtalk);
+  const openJtalk = await createOpenJtalk(
+    functions,
+    "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
+  );
+  const synthesizer = await createSynthesizer(functions, onnxruntime, openJtalk);
   console.log("✅ Initialized\n");
 
   // モデル1をロード
   console.log("📥 Loading model 1...");
-  const model1 = openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
+  const model1 = await openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
   const model1Id = getVoiceModelId(functions, model1);
   const model1Meta = getVoiceModelMetasJson(functions, model1);
   console.log(`📋 Model 1 ID: ${Buffer.from(model1Id).toString("hex")}`);
   console.log(`📋 Model 1 Meta:`, JSON.parse(model1Meta));
 
-  loadVoiceModel(functions, synthesizer, model1);
+  await loadVoiceModel(functions, synthesizer, model1);
   closeVoiceModelFile(functions, model1);
   console.log("✅ Model 1 loaded");
 
@@ -78,7 +81,7 @@ async function main() {
   // モデル1で音声合成
   console.log("\n🎵 Synthesizing with model 1...");
   const text1 = "これはモデル1の音声です。";
-  const wav1 = tts(functions, synthesizer, text1, 0);
+  const wav1 = await tts(functions, synthesizer, text1, 0);
   await writeFile("output_model1.wav", wav1);
   console.log(`💾 Saved to output_model1.wav`);
 
@@ -91,8 +94,8 @@ async function main() {
 
   // 複数モデルを同時にロードすることも可能
   console.log("\n📥 Loading multiple models...");
-  const modelA = openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
-  loadVoiceModel(functions, synthesizer, modelA);
+  const modelA = await openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
+  await loadVoiceModel(functions, synthesizer, modelA);
   closeVoiceModelFile(functions, modelA);
   console.log("✅ Model A loaded");
 

@@ -46,7 +46,7 @@ async function main() {
 
   // 初期化
   console.log("⚙️  Initializing...");
-  const onnxruntime = loadOnnxruntime(functions, {
+  const onnxruntime = await loadOnnxruntime(functions, {
     filename: process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH,
   });
 
@@ -56,11 +56,14 @@ async function main() {
   const devices = JSON.parse(devicesJson);
   console.log("Supported devices:", JSON.stringify(devices, null, 2));
 
-  const openJtalk = createOpenJtalk(functions, "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11");
+  const openJtalk = await createOpenJtalk(
+    functions,
+    "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
+  );
 
   // GPUモードで初期化を試みる
   console.log("\n🎮 Attempting to create synthesizer with GPU mode...");
-  const synthesizer = createSynthesizer(functions, onnxruntime, openJtalk, {
+  const synthesizer = await createSynthesizer(functions, onnxruntime, openJtalk, {
     accelerationMode: VoicevoxAccelerationMode.Gpu,
     cpuNumThreads: 0, // auto
   });
@@ -75,8 +78,8 @@ async function main() {
 
   // 音声モデルをロード
   console.log("\n📥 Loading voice model...");
-  const model = openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
-  loadVoiceModel(functions, synthesizer, model);
+  const model = await openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
+  await loadVoiceModel(functions, synthesizer, model);
   closeVoiceModelFile(functions, model);
   console.log("✅ Voice model loaded");
 
@@ -86,7 +89,7 @@ async function main() {
   const styleId = 0;
 
   const startTime = performance.now();
-  const wav = tts(functions, synthesizer, text, styleId);
+  const wav = await tts(functions, synthesizer, text, styleId);
   const endTime = performance.now();
 
   console.log(`✅ Generated ${wav.length} bytes of WAV data`);

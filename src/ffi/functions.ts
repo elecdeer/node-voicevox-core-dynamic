@@ -8,6 +8,32 @@ import type { IKoffiLib } from "koffi";
 import koffi from "koffi";
 
 // ========================================
+// 非同期関数ヘルパー
+// ========================================
+
+/**
+ * Koffi関数を非同期呼び出し可能にするPromiseラッパー
+ *
+ * @param func - Koffi関数（.asyncメソッドを持つ）
+ * @param args - 関数に渡す引数
+ * @returns 関数の実行結果を返すPromise
+ */
+export function promisifyKoffiAsync<T>(func: any, ...args: any[]): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    func.async(
+      ...args,
+      (err: Error | null, res: T) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(res);
+        }
+      },
+    );
+  });
+}
+
+// ========================================
 // 不透明型（Opaque Types）
 // ========================================
 

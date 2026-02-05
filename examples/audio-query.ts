@@ -43,18 +43,18 @@ async function main() {
 
   // 初期化
   console.log("⚙️  Initializing...");
-  const onnxruntime = loadOnnxruntime(functions, {
+  const onnxruntime = await loadOnnxruntime(functions, {
     filename: process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH,
   });
-  const openJtalk = createOpenJtalk(
+  const openJtalk = await createOpenJtalk(
     functions,
     "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
   );
-  const synthesizer = createSynthesizer(functions, onnxruntime, openJtalk);
+  const synthesizer = await createSynthesizer(functions, onnxruntime, openJtalk);
 
   // 音声モデルをロード
-  const model = openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
-  loadVoiceModel(functions, synthesizer, model);
+  const model = await openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
+  await loadVoiceModel(functions, synthesizer, model);
   closeVoiceModelFile(functions, model);
   console.log("✅ Initialized\n");
 
@@ -63,7 +63,7 @@ async function main() {
   const text = "今日はいい天気ですね。";
   const styleId = 0;
 
-  const audioQuery = createAudioQuery(functions, synthesizer, text, styleId);
+  const audioQuery = await createAudioQuery(functions, synthesizer, text, styleId);
   console.log("✅ AudioQuery created");
   console.log(`📊 Original parameters:`);
   console.log(`   - Speed: ${audioQuery.speedScale}`);
@@ -86,7 +86,7 @@ async function main() {
 
   // 音声合成
   console.log("\n🎵 Synthesizing speech...");
-  const wav = synthesis(functions, synthesizer, audioQuery, styleId, {
+  const wav = await synthesis(functions, synthesizer, audioQuery, styleId, {
     enableInterrogativeUpspeak: true,
   });
   console.log(`✅ Generated ${wav.length} bytes of WAV data`);

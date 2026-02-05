@@ -1,6 +1,6 @@
 {
   "editor.defaultFormatter": "oxc.oxc-vscode",
-  "cSpell.words": ["jtalk", "ONNX", "onnxruntime", "oxfmt", "oxlint", "voicevox"],
+  "cSpell.words": ["jtalk", "Koffi", "ONNX", "onnxruntime", "oxfmt", "oxlint", "voicevox"],
   "typescript.preferences.importModuleSpecifier": "project-relative",
   "javascript.preferences.importModuleSpecifier": "project-relative",
   "editor.codeActionsOnSave": {

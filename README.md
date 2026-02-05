@@ -5,6 +5,7 @@ Node.js binding for [voicevox_core](https://github.com/VOICEVOX/voicevox_core) u
 ## Features
 
 - 🚀 Function-based API (no classes)
+- ⚡ Async/await support for non-blocking operations
 - 🔒 Type-safe with TypeScript strict mode
 - 🎯 Brand types for opaque handles
 - 📦 Dynamic library loading with configurable paths
@@ -45,27 +46,31 @@ import {
 } from "node-voicevox-core-dynamic";
 import { writeFile } from "fs/promises";
 
-// Set library path (or use environment variable)
-process.env.VOICEVOX_CORE_LIB_PATH = "./voicevox/voicevox_core/c_api/lib/libvoicevox_core.dylib";
+async function main() {
+  // Set library path (or use environment variable)
+  process.env.VOICEVOX_CORE_LIB_PATH = "./voicevox/voicevox_core/c_api/lib/libvoicevox_core.dylib";
 
-// Initialize
-const onnxruntime = loadOnnxruntime();
-const openJtalk = createOpenJtalk("./voicevox/voicevox_core/dict");
-const synthesizer = createSynthesizer(onnxruntime, openJtalk);
+  // Initialize (async operations run on worker threads)
+  const onnxruntime = await loadOnnxruntime();
+  const openJtalk = await createOpenJtalk("./voicevox/voicevox_core/dict");
+  const synthesizer = await createSynthesizer(onnxruntime, openJtalk);
 
-// Load voice model
-const model = openVoiceModelFile("./voicevox/voicevox_core/models/sample.vvm");
-loadVoiceModel(synthesizer, model);
-closeVoiceModelFile(model); // Can be closed after loading
+  // Load voice model
+  const model = await openVoiceModelFile("./voicevox/voicevox_core/models/sample.vvm");
+  await loadVoiceModel(synthesizer, model);
+  closeVoiceModelFile(model); // Can be closed after loading
 
-// Text-to-Speech
-const wav = tts(synthesizer, "こんにちは", 0);
-await writeFile("output.wav", wav);
+  // Text-to-Speech (async to avoid blocking the event loop)
+  const wav = await tts(synthesizer, "こんにちは", 0);
+  await writeFile("output.wav", wav);
 
-// Cleanup
-deleteSynthesizer(synthesizer);
-deleteOpenJtalk(openJtalk);
-// onnxruntime is singleton, no need to delete
+  // Cleanup
+  deleteSynthesizer(synthesizer);
+  deleteOpenJtalk(openJtalk);
+  // onnxruntime is singleton, no need to delete
+}
+
+main();
 ```
 
 ### AudioQuery Example
@@ -73,15 +78,15 @@ deleteOpenJtalk(openJtalk);
 ```typescript
 import { createAudioQuery, synthesis, VoicevoxAccelerationMode } from "node-voicevox-core-dynamic";
 
-// Create AudioQuery from text
-const audioQuery = createAudioQuery(synthesizer, "こんにちは", 0);
+// Create AudioQuery from text (async)
+const audioQuery = await createAudioQuery(synthesizer, "こんにちは", 0);
 
 // Modify AudioQuery (optional)
 audioQuery.speedScale = 1.2;
 audioQuery.pitchScale = 0.8;
 
-// Synthesize from AudioQuery
-const wav = synthesis(synthesizer, audioQuery, 0, {
+// Synthesize from AudioQuery (async)
+const wav = await synthesis(synthesizer, audioQuery, 0, {
   enableInterrogativeUpspeak: true,
 });
 ```
@@ -91,7 +96,7 @@ const wav = synthesis(synthesizer, audioQuery, 0, {
 ```typescript
 import { VoicevoxAccelerationMode } from "node-voicevox-core-dynamic";
 
-const synthesizer = createSynthesizer(onnxruntime, openJtalk, {
+const synthesizer = await createSynthesizer(onnxruntime, openJtalk, {
   accelerationMode: VoicevoxAccelerationMode.Gpu,
   cpuNumThreads: 0, // auto
 });
@@ -136,28 +141,28 @@ if (isGpuMode(synthesizer)) {
 
 #### ONNX Runtime
 
-- `loadOnnxruntime(options?)` - Load and initialize ONNX Runtime
+- `loadOnnxruntime(options?)` - **async** Load and initialize ONNX Runtime
 - `getOnnxruntime()` - Get already loaded ONNX Runtime (or null)
 - `getOnnxruntimeSupportedDevicesJson(onnxruntime)` - Get supported devices info
 - `getVersion()` - Get voicevox_core version
 
 #### OpenJTalk
 
-- `createOpenJtalk(dictDir)` - Create OpenJTalk instance
+- `createOpenJtalk(dictDir)` - **async** Create OpenJTalk instance
 - `deleteOpenJtalk(openJtalk)` - Delete OpenJTalk instance
 
 #### Voice Model
 
-- `openVoiceModelFile(path)` - Open VVM file
+- `openVoiceModelFile(path)` - **async** Open VVM file
 - `getVoiceModelId(model)` - Get model ID (UUID)
 - `getVoiceModelMetasJson(model)` - Get model metadata as JSON
 - `closeVoiceModelFile(model)` - Close VVM file
 
 #### Synthesizer
 
-- `createSynthesizer(onnxruntime, openJtalk, options?)` - Create synthesizer
+- `createSynthesizer(onnxruntime, openJtalk, options?)` - **async** Create synthesizer
 - `deleteSynthesizer(synthesizer)` - Delete synthesizer
-- `loadVoiceModel(synthesizer, model)` - Load voice model
+- `loadVoiceModel(synthesizer, model)` - **async** Load voice model
 - `unloadVoiceModel(synthesizer, modelId)` - Unload voice model
 - `isGpuMode(synthesizer)` - Check if GPU mode
 - `isLoadedVoiceModel(synthesizer, modelId)` - Check if model is loaded
@@ -165,9 +170,9 @@ if (isGpuMode(synthesizer)) {
 
 #### Audio Generation
 
-- `createAudioQuery(synthesizer, text, styleId)` - Create AudioQuery from text
-- `synthesis(synthesizer, audioQuery, styleId, options?)` - Synthesize from AudioQuery
-- `tts(synthesizer, text, styleId, options?)` - Direct text-to-speech
+- `createAudioQuery(synthesizer, text, styleId)` - **async** Create AudioQuery from text
+- `synthesis(synthesizer, audioQuery, styleId, options?)` - **async** Synthesize from AudioQuery
+- `tts(synthesizer, text, styleId, options?)` - **async** Direct text-to-speech
 
 ## Environment Variables
 

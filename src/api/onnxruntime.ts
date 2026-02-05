@@ -3,6 +3,7 @@
  */
 
 import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
+import { promisifyKoffiAsync } from "../ffi/functions.js";
 import { VoicevoxResultCode } from "../types/enums.js";
 import type { LoadOnnxruntimeOptions, OnnxruntimeHandle } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
@@ -16,11 +17,13 @@ import koffi from "koffi";
  *
  * @param functions - VOICEVOX CORE FFI関数
  * @param options - ロードオプション
- * @returns ONNX Runtimeハンドル
+ * @returns Promise<ONNX Runtimeハンドル>
  * @throws {VoicevoxError} ロードに失敗した場合
  */
-export function loadOnnxruntime(functions: VoicevoxCoreFunctions, options?: LoadOnnxruntimeOptions): OnnxruntimeHandle {
-
+export async function loadOnnxruntime(
+  functions: VoicevoxCoreFunctions,
+  options?: LoadOnnxruntimeOptions,
+): Promise<OnnxruntimeHandle> {
   const defaultOptions = functions.voicevox_make_default_load_onnxruntime_options() as {
     filename: string;
   };
@@ -30,10 +33,11 @@ export function loadOnnxruntime(functions: VoicevoxCoreFunctions, options?: Load
   };
 
   const outOnnxruntime = [null];
-  const resultCode = functions.voicevox_onnxruntime_load_once(
+  const resultCode = await promisifyKoffiAsync<number>(
+    functions.voicevox_onnxruntime_load_once,
     loadOptions,
     outOnnxruntime,
-  ) as number;
+  );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode) as string;
@@ -74,8 +78,10 @@ export function getOnnxruntime(functions: VoicevoxCoreFunctions): OnnxruntimeHan
  * @returns デバイス情報のJSON文字列
  * @throws {VoicevoxError} 情報取得に失敗した場合
  */
-export function getOnnxruntimeSupportedDevicesJson(functions: VoicevoxCoreFunctions, onnxruntime: OnnxruntimeHandle): string {
-
+export function getOnnxruntimeSupportedDevicesJson(
+  functions: VoicevoxCoreFunctions,
+  onnxruntime: OnnxruntimeHandle,
+): string {
   const outJson = [null];
   const resultCode = functions.voicevox_onnxruntime_create_supported_devices_json(
     onnxruntime,

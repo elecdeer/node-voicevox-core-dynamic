@@ -3,6 +3,7 @@
  */
 
 import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
+import { promisifyKoffiAsync } from "../ffi/functions.js";
 import { VoicevoxResultCode } from "../types/enums.js";
 import type {
   OnnxruntimeHandle,
@@ -25,16 +26,15 @@ import koffi from "koffi";
  * @param onnxruntime - ONNX Runtimeハンドル
  * @param openJtalk - OpenJTalkハンドル
  * @param options - 初期化オプション
- * @returns シンセサイザハンドル
+ * @returns Promise<シンセサイザハンドル>
  * @throws {VoicevoxError} 構築に失敗した場合
  */
-export function createSynthesizer(
+export async function createSynthesizer(
   functions: VoicevoxCoreFunctions,
   onnxruntime: OnnxruntimeHandle,
   openJtalk: OpenJtalkHandle,
   options?: InitializeOptions,
-): SynthesizerHandle {
-
+): Promise<SynthesizerHandle> {
   const defaultOptions = functions.voicevox_make_default_initialize_options() as {
     acceleration_mode: number;
     cpu_num_threads: number;
@@ -46,12 +46,13 @@ export function createSynthesizer(
   };
 
   const outSynthesizer = [null];
-  const resultCode = functions.voicevox_synthesizer_new(
+  const resultCode = await promisifyKoffiAsync<number>(
+    functions.voicevox_synthesizer_new,
     onnxruntime,
     openJtalk,
     initOptions,
     outSynthesizer,
-  ) as number;
+  );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode) as string;
@@ -72,7 +73,10 @@ export function createSynthesizer(
  * @param functions - VOICEVOX CORE FFI関数
  * @param synthesizer - シンセサイザハンドル
  */
-export function deleteSynthesizer(functions: VoicevoxCoreFunctions, synthesizer: SynthesizerHandle): void {
+export function deleteSynthesizer(
+  functions: VoicevoxCoreFunctions,
+  synthesizer: SynthesizerHandle,
+): void {
   functions.voicevox_synthesizer_delete(synthesizer);
 }
 
@@ -82,11 +86,19 @@ export function deleteSynthesizer(functions: VoicevoxCoreFunctions, synthesizer:
  * @param functions - VOICEVOX CORE FFI関数
  * @param synthesizer - シンセサイザハンドル
  * @param model - 音声モデルファイルハンドル
+ * @returns Promise<void>
  * @throws {VoicevoxError} ロードに失敗した場合
  */
-export function loadVoiceModel(functions: VoicevoxCoreFunctions, synthesizer: SynthesizerHandle, model: VoiceModelFileHandle): void {
-
-  const resultCode = functions.voicevox_synthesizer_load_voice_model(synthesizer, model) as number;
+export async function loadVoiceModel(
+  functions: VoicevoxCoreFunctions,
+  synthesizer: SynthesizerHandle,
+  model: VoiceModelFileHandle,
+): Promise<void> {
+  const resultCode = await promisifyKoffiAsync<number>(
+    functions.voicevox_synthesizer_load_voice_model,
+    synthesizer,
+    model,
+  );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode) as string;
@@ -102,8 +114,11 @@ export function loadVoiceModel(functions: VoicevoxCoreFunctions, synthesizer: Sy
  * @param modelId - 音声モデルID（16バイトのUUID）
  * @throws {VoicevoxError} アンロードに失敗した場合
  */
-export function unloadVoiceModel(functions: VoicevoxCoreFunctions, synthesizer: SynthesizerHandle, modelId: Uint8Array): void {
-
+export function unloadVoiceModel(
+  functions: VoicevoxCoreFunctions,
+  synthesizer: SynthesizerHandle,
+  modelId: Uint8Array,
+): void {
   const resultCode = functions.voicevox_synthesizer_unload_voice_model(
     synthesizer,
     modelId,
@@ -122,7 +137,10 @@ export function unloadVoiceModel(functions: VoicevoxCoreFunctions, synthesizer: 
  * @param synthesizer - シンセサイザハンドル
  * @returns GPUモードの場合true
  */
-export function isGpuMode(functions: VoicevoxCoreFunctions, synthesizer: SynthesizerHandle): boolean {
+export function isGpuMode(
+  functions: VoicevoxCoreFunctions,
+  synthesizer: SynthesizerHandle,
+): boolean {
   return functions.voicevox_synthesizer_is_gpu_mode(synthesizer) as boolean;
 }
 
@@ -134,7 +152,11 @@ export function isGpuMode(functions: VoicevoxCoreFunctions, synthesizer: Synthes
  * @param modelId - 音声モデルID（16バイトのUUID）
  * @returns ロードされている場合true
  */
-export function isLoadedVoiceModel(functions: VoicevoxCoreFunctions, synthesizer: SynthesizerHandle, modelId: Uint8Array): boolean {
+export function isLoadedVoiceModel(
+  functions: VoicevoxCoreFunctions,
+  synthesizer: SynthesizerHandle,
+  modelId: Uint8Array,
+): boolean {
   return functions.voicevox_synthesizer_is_loaded_voice_model(synthesizer, modelId) as boolean;
 }
 
@@ -145,8 +167,10 @@ export function isLoadedVoiceModel(functions: VoicevoxCoreFunctions, synthesizer
  * @param synthesizer - シンセサイザハンドル
  * @returns メタ情報のJSON文字列
  */
-export function getSynthesizerMetasJson(functions: VoicevoxCoreFunctions, synthesizer: SynthesizerHandle): string {
-
+export function getSynthesizerMetasJson(
+  functions: VoicevoxCoreFunctions,
+  synthesizer: SynthesizerHandle,
+): string {
   const jsonPtr = functions.voicevox_synthesizer_create_metas_json(synthesizer);
   const jsonStr = koffi.decode(jsonPtr, "string") as string;
 
@@ -162,23 +186,23 @@ export function getSynthesizerMetasJson(functions: VoicevoxCoreFunctions, synthe
  * @param synthesizer - シンセサイザハンドル
  * @param text - 日本語テキスト
  * @param styleId - スタイルID
- * @returns AudioQuery
+ * @returns Promise<AudioQuery>
  * @throws {VoicevoxError} 生成に失敗した場合
  */
-export function createAudioQuery(
+export async function createAudioQuery(
   functions: VoicevoxCoreFunctions,
   synthesizer: SynthesizerHandle,
   text: string,
   styleId: number,
-): AudioQuery {
-
+): Promise<AudioQuery> {
   const outJson = [null];
-  const resultCode = functions.voicevox_synthesizer_create_audio_query(
+  const resultCode = await promisifyKoffiAsync<number>(
+    functions.voicevox_synthesizer_create_audio_query,
     synthesizer,
     text,
     styleId,
     outJson,
-  ) as number;
+  );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode) as string;
@@ -201,17 +225,16 @@ export function createAudioQuery(
  * @param audioQuery - AudioQuery
  * @param styleId - スタイルID
  * @param options - 合成オプション
- * @returns WAVデータ
+ * @returns Promise<WAVデータ>
  * @throws {VoicevoxError} 合成に失敗した場合
  */
-export function synthesis(
+export async function synthesis(
   functions: VoicevoxCoreFunctions,
   synthesizer: SynthesizerHandle,
   audioQuery: AudioQuery,
   styleId: number,
   options?: SynthesisOptions,
-): Uint8Array {
-
+): Promise<Uint8Array> {
   const defaultOptions = functions.voicevox_make_default_synthesis_options() as {
     enable_interrogative_upspeak: boolean;
   };
@@ -225,14 +248,15 @@ export function synthesis(
   const outLength = [0];
   const outWav = [null];
 
-  const resultCode = functions.voicevox_synthesizer_synthesis(
+  const resultCode = await promisifyKoffiAsync<number>(
+    functions.voicevox_synthesizer_synthesis,
     synthesizer,
     audioQueryJson,
     styleId,
     synthesisOptions,
     outLength,
     outWav,
-  ) as number;
+  );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode) as string;
@@ -260,17 +284,16 @@ export function synthesis(
  * @param text - 日本語テキスト
  * @param styleId - スタイルID
  * @param options - TTSオプション
- * @returns WAVデータ
+ * @returns Promise<WAVデータ>
  * @throws {VoicevoxError} 合成に失敗した場合
  */
-export function tts(
+export async function tts(
   functions: VoicevoxCoreFunctions,
   synthesizer: SynthesizerHandle,
   text: string,
   styleId: number,
   options?: TtsOptions,
-): Uint8Array {
-
+): Promise<Uint8Array> {
   const defaultOptions = functions.voicevox_make_default_tts_options() as {
     enable_interrogative_upspeak: boolean;
   };
@@ -283,14 +306,15 @@ export function tts(
   const outLength = [0];
   const outWav = [null];
 
-  const resultCode = functions.voicevox_synthesizer_tts(
+  const resultCode = await promisifyKoffiAsync<number>(
+    functions.voicevox_synthesizer_tts,
     synthesizer,
     text,
     styleId,
     ttsOptions,
     outLength,
     outWav,
-  ) as number;
+  );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode) as string;

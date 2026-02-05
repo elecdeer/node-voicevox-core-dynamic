@@ -50,26 +50,26 @@ async function main() {
   console.log("⚙️  Initializing...");
 
   // ONNX Runtimeをロード
-  const onnxruntime = loadOnnxruntime(functions, {
+  const onnxruntime = await loadOnnxruntime(functions, {
     filename: process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH,
   });
   console.log("✅ ONNX Runtime loaded");
 
   // OpenJTalkを初期化
-  const openJtalk = createOpenJtalk(
+  const openJtalk = await createOpenJtalk(
     functions,
     "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
   );
   console.log("✅ OpenJTalk initialized");
 
   // シンセサイザを作成
-  const synthesizer = createSynthesizer(functions, onnxruntime, openJtalk);
+  const synthesizer = await createSynthesizer(functions, onnxruntime, openJtalk);
   console.log("✅ Synthesizer created");
 
   // 音声モデルをロード
   console.log("\n📥 Loading voice model...");
-  const model = openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
-  loadVoiceModel(functions, synthesizer, model);
+  const model = await openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
+  await loadVoiceModel(functions, synthesizer, model);
   console.log("✅ Voice model loaded");
 
   // モデルファイルは閉じてOK（内部でコピーされている）
@@ -84,7 +84,7 @@ async function main() {
   console.log(`🎨 Style ID: ${styleId}`);
 
   const timeStart = performance.now();
-  const wav = tts(functions, synthesizer, text, styleId);
+  const wav = await tts(functions, synthesizer, text, styleId);
   console.log(`✅ Generated ${wav.length} bytes of WAV data`);
 
   const timeEnd = performance.now();

@@ -3,6 +3,7 @@
  */
 
 import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
+import { promisifyKoffiAsync } from "../ffi/functions.js";
 import { VoicevoxResultCode } from "../types/enums.js";
 import type { VoiceModelFileHandle } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
@@ -14,13 +15,19 @@ import koffi from "koffi";
  *
  * @param functions - VOICEVOX CORE FFI関数
  * @param path - VVMファイルのパス
- * @returns 音声モデルファイルハンドル
+ * @returns Promise<音声モデルファイルハンドル>
  * @throws {VoicevoxError} ファイルを開けなかった場合
  */
-export function openVoiceModelFile(functions: VoicevoxCoreFunctions, path: string): VoiceModelFileHandle {
-
+export async function openVoiceModelFile(
+  functions: VoicevoxCoreFunctions,
+  path: string,
+): Promise<VoiceModelFileHandle> {
   const outModel = [null];
-  const resultCode = functions.voicevox_voice_model_file_open(path, outModel) as number;
+  const resultCode = await promisifyKoffiAsync<number>(
+    functions.voicevox_voice_model_file_open,
+    path,
+    outModel,
+  );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode) as string;
@@ -42,8 +49,10 @@ export function openVoiceModelFile(functions: VoicevoxCoreFunctions, path: strin
  * @param model - 音声モデルファイルハンドル
  * @returns 音声モデルID（16バイトのUUID）
  */
-export function getVoiceModelId(functions: VoicevoxCoreFunctions, model: VoiceModelFileHandle): Uint8Array {
-
+export function getVoiceModelId(
+  functions: VoicevoxCoreFunctions,
+  model: VoiceModelFileHandle,
+): Uint8Array {
   const modelId = new Uint8Array(16);
   functions.voicevox_voice_model_file_id(model, modelId);
 
@@ -57,8 +66,10 @@ export function getVoiceModelId(functions: VoicevoxCoreFunctions, model: VoiceMo
  * @param model - 音声モデルファイルハンドル
  * @returns メタ情報のJSON文字列
  */
-export function getVoiceModelMetasJson(functions: VoicevoxCoreFunctions, model: VoiceModelFileHandle): string {
-
+export function getVoiceModelMetasJson(
+  functions: VoicevoxCoreFunctions,
+  model: VoiceModelFileHandle,
+): string {
   const jsonPtr = functions.voicevox_voice_model_file_create_metas_json(model);
   const jsonStr = koffi.decode(jsonPtr, "string") as string;
 
@@ -73,6 +84,9 @@ export function getVoiceModelMetasJson(functions: VoicevoxCoreFunctions, model: 
  * @param functions - VOICEVOX CORE FFI関数
  * @param model - 音声モデルファイルハンドル
  */
-export function closeVoiceModelFile(functions: VoicevoxCoreFunctions, model: VoiceModelFileHandle): void {
+export function closeVoiceModelFile(
+  functions: VoicevoxCoreFunctions,
+  model: VoiceModelFileHandle,
+): void {
   functions.voicevox_voice_model_file_delete(model);
 }
