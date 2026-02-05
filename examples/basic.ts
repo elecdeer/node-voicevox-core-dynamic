@@ -17,11 +17,15 @@ import {
   closeVoiceModelFile,
   getVersion,
 } from "../src/index.js";
+import { loadLibrary } from "../src/ffi/library.js";
 import { writeFile } from "node:fs/promises";
 
 async function main() {
+  // ライブラリをロード
+  const functions = loadLibrary();
+
   console.log("🎤 VOICEVOX CORE Node.js Binding Example");
-  console.log(`📦 Version: ${getVersion()}\n`);
+  console.log(`📦 Version: ${getVersion(functions)}\n`);
 
   // 環境変数チェック
   if (!process.env.VOICEVOX_CORE_LIB_PATH) {
@@ -46,27 +50,30 @@ async function main() {
   console.log("⚙️  Initializing...");
 
   // ONNX Runtimeをロード
-  const onnxruntime = loadOnnxruntime({
+  const onnxruntime = loadOnnxruntime(functions, {
     filename: process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH,
   });
   console.log("✅ ONNX Runtime loaded");
 
   // OpenJTalkを初期化
-  const openJtalk = createOpenJtalk("./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11");
+  const openJtalk = createOpenJtalk(
+    functions,
+    "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
+  );
   console.log("✅ OpenJTalk initialized");
 
   // シンセサイザを作成
-  const synthesizer = createSynthesizer(onnxruntime, openJtalk);
+  const synthesizer = createSynthesizer(functions, onnxruntime, openJtalk);
   console.log("✅ Synthesizer created");
 
   // 音声モデルをロード
   console.log("\n📥 Loading voice model...");
-  const model = openVoiceModelFile("./voicevox/voicevox_core/models/vvms/0.vvm");
-  loadVoiceModel(synthesizer, model);
+  const model = openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
+  loadVoiceModel(functions, synthesizer, model);
   console.log("✅ Voice model loaded");
 
   // モデルファイルは閉じてOK（内部でコピーされている）
-  closeVoiceModelFile(model);
+  closeVoiceModelFile(functions, model);
 
   // 音声合成
   console.log("\n🎵 Synthesizing speech...");
@@ -77,7 +84,7 @@ async function main() {
   console.log(`🎨 Style ID: ${styleId}`);
 
   const timeStart = performance.now();
-  const wav = tts(synthesizer, text, styleId);
+  const wav = tts(functions, synthesizer, text, styleId);
   console.log(`✅ Generated ${wav.length} bytes of WAV data`);
 
   const timeEnd = performance.now();
@@ -90,8 +97,8 @@ async function main() {
 
   // クリーンアップ
   console.log("\n🧹 Cleaning up...");
-  deleteSynthesizer(synthesizer);
-  deleteOpenJtalk(openJtalk);
+  deleteSynthesizer(functions, synthesizer);
+  deleteOpenJtalk(functions, openJtalk);
   console.log("✅ Done!");
 }
 

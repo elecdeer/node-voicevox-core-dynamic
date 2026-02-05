@@ -2,36 +2,22 @@
  * 音声モデル関連API
  */
 
-import { loadLibrary } from "../ffi/library.js";
-import { declareFunctions } from "../ffi/functions.js";
+import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
 import { VoicevoxResultCode } from "../types/enums.js";
 import type { VoiceModelFileHandle } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
 import { freeJson } from "../utils/memory.js";
 import koffi from "koffi";
 
-let cachedFunctions: ReturnType<typeof declareFunctions> | null = null;
-
-/**
- * FFI関数を取得（キャッシュ）
- */
-function getFunctions() {
-  if (!cachedFunctions) {
-    const lib = loadLibrary();
-    cachedFunctions = declareFunctions(lib);
-  }
-  return cachedFunctions;
-}
-
 /**
  * VVMファイルを開く
  *
+ * @param functions - VOICEVOX CORE FFI関数
  * @param path - VVMファイルのパス
  * @returns 音声モデルファイルハンドル
  * @throws {VoicevoxError} ファイルを開けなかった場合
  */
-export function openVoiceModelFile(path: string): VoiceModelFileHandle {
-  const functions = getFunctions();
+export function openVoiceModelFile(functions: VoicevoxCoreFunctions, path: string): VoiceModelFileHandle {
 
   const outModel = [null];
   const resultCode = functions.voicevox_voice_model_file_open(path, outModel) as number;
@@ -52,11 +38,11 @@ export function openVoiceModelFile(path: string): VoiceModelFileHandle {
 /**
  * 音声モデルIDを取得
  *
+ * @param functions - VOICEVOX CORE FFI関数
  * @param model - 音声モデルファイルハンドル
  * @returns 音声モデルID（16バイトのUUID）
  */
-export function getVoiceModelId(model: VoiceModelFileHandle): Uint8Array {
-  const functions = getFunctions();
+export function getVoiceModelId(functions: VoicevoxCoreFunctions, model: VoiceModelFileHandle): Uint8Array {
 
   const modelId = new Uint8Array(16);
   functions.voicevox_voice_model_file_id(model, modelId);
@@ -67,17 +53,16 @@ export function getVoiceModelId(model: VoiceModelFileHandle): Uint8Array {
 /**
  * 音声モデルのメタ情報JSONを取得
  *
+ * @param functions - VOICEVOX CORE FFI関数
  * @param model - 音声モデルファイルハンドル
  * @returns メタ情報のJSON文字列
  */
-export function getVoiceModelMetasJson(model: VoiceModelFileHandle): string {
-  const functions = getFunctions();
-  const lib = loadLibrary();
+export function getVoiceModelMetasJson(functions: VoicevoxCoreFunctions, model: VoiceModelFileHandle): string {
 
   const jsonPtr = functions.voicevox_voice_model_file_create_metas_json(model);
   const jsonStr = koffi.decode(jsonPtr, "string") as string;
 
-  freeJson(lib, jsonPtr);
+  freeJson(functions.lib, jsonPtr);
 
   return jsonStr;
 }
@@ -85,9 +70,9 @@ export function getVoiceModelMetasJson(model: VoiceModelFileHandle): string {
 /**
  * 音声モデルファイルを閉じる
  *
+ * @param functions - VOICEVOX CORE FFI関数
  * @param model - 音声モデルファイルハンドル
  */
-export function closeVoiceModelFile(model: VoiceModelFileHandle): void {
-  const functions = getFunctions();
+export function closeVoiceModelFile(functions: VoicevoxCoreFunctions, model: VoiceModelFileHandle): void {
   functions.voicevox_voice_model_file_delete(model);
 }

@@ -2,38 +2,24 @@
  * ONNX Runtime関連API
  */
 
-import { loadLibrary } from "../ffi/library.js";
-import { declareFunctions } from "../ffi/functions.js";
+import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
 import { VoicevoxResultCode } from "../types/enums.js";
 import type { LoadOnnxruntimeOptions, OnnxruntimeHandle } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
 import { freeJson } from "../utils/memory.js";
 import koffi from "koffi";
 
-let cachedFunctions: ReturnType<typeof declareFunctions> | null = null;
-
-/**
- * FFI関数を取得（キャッシュ）
- */
-function getFunctions() {
-  if (!cachedFunctions) {
-    const lib = loadLibrary();
-    cachedFunctions = declareFunctions(lib);
-  }
-  return cachedFunctions;
-}
-
 /**
  * ONNX Runtimeをロードして初期化する
  *
  * 一度成功したら以後は同じハンドルを返す（シングルトン）
  *
+ * @param functions - VOICEVOX CORE FFI関数
  * @param options - ロードオプション
  * @returns ONNX Runtimeハンドル
  * @throws {VoicevoxError} ロードに失敗した場合
  */
-export function loadOnnxruntime(options?: LoadOnnxruntimeOptions): OnnxruntimeHandle {
-  const functions = getFunctions();
+export function loadOnnxruntime(functions: VoicevoxCoreFunctions, options?: LoadOnnxruntimeOptions): OnnxruntimeHandle {
 
   const defaultOptions = functions.voicevox_make_default_load_onnxruntime_options() as {
     filename: string;
@@ -67,10 +53,10 @@ export function loadOnnxruntime(options?: LoadOnnxruntimeOptions): OnnxruntimeHa
  *
  * ロードされていない場合はnullを返す
  *
+ * @param functions - VOICEVOX CORE FFI関数
  * @returns ONNX Runtimeハンドル、またはnull
  */
-export function getOnnxruntime(): OnnxruntimeHandle | null {
-  const functions = getFunctions();
+export function getOnnxruntime(functions: VoicevoxCoreFunctions): OnnxruntimeHandle | null {
   const onnxruntime = functions.voicevox_onnxruntime_get();
 
   if (onnxruntime == null) {
@@ -83,13 +69,12 @@ export function getOnnxruntime(): OnnxruntimeHandle | null {
 /**
  * サポートされているデバイス情報をJSONで取得
  *
+ * @param functions - VOICEVOX CORE FFI関数
  * @param onnxruntime - ONNX Runtimeハンドル
  * @returns デバイス情報のJSON文字列
  * @throws {VoicevoxError} 情報取得に失敗した場合
  */
-export function getOnnxruntimeSupportedDevicesJson(onnxruntime: OnnxruntimeHandle): string {
-  const functions = getFunctions();
-  const lib = loadLibrary();
+export function getOnnxruntimeSupportedDevicesJson(functions: VoicevoxCoreFunctions, onnxruntime: OnnxruntimeHandle): string {
 
   const outJson = [null];
   const resultCode = functions.voicevox_onnxruntime_create_supported_devices_json(
@@ -105,7 +90,7 @@ export function getOnnxruntimeSupportedDevicesJson(onnxruntime: OnnxruntimeHandl
   const jsonPtr = outJson[0];
   const jsonStr = koffi.decode(jsonPtr, "string") as string;
 
-  freeJson(lib, jsonPtr);
+  freeJson(functions.lib, jsonPtr);
 
   return jsonStr;
 }
@@ -113,9 +98,9 @@ export function getOnnxruntimeSupportedDevicesJson(onnxruntime: OnnxruntimeHandl
 /**
  * バージョン情報を取得
  *
+ * @param functions - VOICEVOX CORE FFI関数
  * @returns バージョン文字列
  */
-export function getVersion(): string {
-  const functions = getFunctions();
+export function getVersion(functions: VoicevoxCoreFunctions): string {
   return functions.voicevox_get_version() as string;
 }

@@ -12,6 +12,8 @@ import "./types.js";
  * C API関数群
  */
 export interface VoicevoxCoreFunctions {
+  // ライブラリインスタンス
+  lib: IKoffiLib;
   // ONNX Runtime関連
   voicevox_get_onnxruntime_lib_versioned_filename: (...args: unknown[]) => unknown;
   voicevox_get_onnxruntime_lib_unversioned_filename: (...args: unknown[]) => unknown;
@@ -77,6 +79,8 @@ export interface VoicevoxCoreFunctions {
  */
 export function declareFunctions(lib: IKoffiLib): VoicevoxCoreFunctions {
   return {
+    // ライブラリインスタンス
+    lib,
     // ONNX Runtime関連
     voicevox_get_onnxruntime_lib_versioned_filename: lib.func(
       "const char* voicevox_get_onnxruntime_lib_versioned_filename(void)",

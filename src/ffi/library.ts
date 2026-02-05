@@ -5,8 +5,7 @@
  */
 
 import koffi from "koffi";
-
-let library: koffi.IKoffiLib | null = null;
+import { declareFunctions, type VoicevoxCoreFunctions } from "./functions.js";
 
 /**
  * プラットフォームに応じたデフォルトライブラリ名を取得
@@ -33,28 +32,12 @@ function getLibraryPath(): string {
 }
 
 /**
- * voicevox_coreライブラリをロードする
+ * voicevox_coreライブラリをロードしてFFI関数を宣言する
  *
- * 一度ロードされたライブラリはキャッシュされ、再度呼び出しても同じインスタンスが返される
- *
- * @returns koffiライブラリインスタンス
+ * @returns VOICEVOX CORE FFI関数
  */
-export function loadLibrary(): koffi.IKoffiLib {
-  if (library) {
-    return library;
-  }
-
+export function loadLibrary(): VoicevoxCoreFunctions {
   const libPath = getLibraryPath();
-  library = koffi.load(libPath);
-
-  return library;
-}
-
-/**
- * ライブラリをアンロードする
- *
- * テストなどで必要な場合のみ使用すること
- */
-export function unloadLibrary(): void {
-  library = null;
+  const lib = koffi.load(libPath);
+  return declareFunctions(lib);
 }

@@ -2,34 +2,20 @@
  * OpenJTalk関連API
  */
 
-import { loadLibrary } from "../ffi/library.js";
-import { declareFunctions } from "../ffi/functions.js";
+import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
 import { VoicevoxResultCode } from "../types/enums.js";
 import type { OpenJtalkHandle } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
 
-let cachedFunctions: ReturnType<typeof declareFunctions> | null = null;
-
-/**
- * FFI関数を取得（キャッシュ）
- */
-function getFunctions() {
-  if (!cachedFunctions) {
-    const lib = loadLibrary();
-    cachedFunctions = declareFunctions(lib);
-  }
-  return cachedFunctions;
-}
-
 /**
  * OpenJTalkを構築する
  *
+ * @param functions - VOICEVOX CORE FFI関数
  * @param dictDir - Open JTalk辞書ディレクトリのパス
  * @returns OpenJTalkハンドル
  * @throws {VoicevoxError} 構築に失敗した場合
  */
-export function createOpenJtalk(dictDir: string): OpenJtalkHandle {
-  const functions = getFunctions();
+export function createOpenJtalk(functions: VoicevoxCoreFunctions, dictDir: string): OpenJtalkHandle {
 
   const outOpenJtalk = [null];
   const resultCode = functions.voicevox_open_jtalk_rc_new(dictDir, outOpenJtalk) as number;
@@ -50,9 +36,9 @@ export function createOpenJtalk(dictDir: string): OpenJtalkHandle {
 /**
  * OpenJTalkを破棄する
  *
+ * @param functions - VOICEVOX CORE FFI関数
  * @param openJtalk - OpenJTalkハンドル
  */
-export function deleteOpenJtalk(openJtalk: OpenJtalkHandle): void {
-  const functions = getFunctions();
+export function deleteOpenJtalk(functions: VoicevoxCoreFunctions, openJtalk: OpenJtalkHandle): void {
   functions.voicevox_open_jtalk_rc_delete(openJtalk);
 }

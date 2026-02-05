@@ -19,10 +19,14 @@ import {
   closeVoiceModelFile,
   VoicevoxAccelerationMode,
 } from "../src/index.js";
+import { loadLibrary } from "../src/ffi/library.js";
 import { writeFile } from "node:fs/promises";
 
 async function main() {
   console.log("🎤 GPU Mode Example\n");
+
+  // ライブラリをロード
+  const functions = loadLibrary();
 
   // 環境変数チェック
   if (!process.env.VOICEVOX_CORE_LIB_PATH) {
@@ -42,27 +46,27 @@ async function main() {
 
   // 初期化
   console.log("⚙️  Initializing...");
-  const onnxruntime = loadOnnxruntime({
+  const onnxruntime = loadOnnxruntime(functions, {
     filename: process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH,
   });
 
   // サポートされているデバイス情報を確認
   console.log("\n📊 Checking supported devices...");
-  const devicesJson = getOnnxruntimeSupportedDevicesJson(onnxruntime);
+  const devicesJson = getOnnxruntimeSupportedDevicesJson(functions, onnxruntime);
   const devices = JSON.parse(devicesJson);
   console.log("Supported devices:", JSON.stringify(devices, null, 2));
 
-  const openJtalk = createOpenJtalk("./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11");
+  const openJtalk = createOpenJtalk(functions, "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11");
 
   // GPUモードで初期化を試みる
   console.log("\n🎮 Attempting to create synthesizer with GPU mode...");
-  const synthesizer = createSynthesizer(onnxruntime, openJtalk, {
+  const synthesizer = createSynthesizer(functions, onnxruntime, openJtalk, {
     accelerationMode: VoicevoxAccelerationMode.Gpu,
     cpuNumThreads: 0, // auto
   });
 
   // GPUモードが有効かチェック
-  const gpuEnabled = isGpuMode(synthesizer);
+  const gpuEnabled = isGpuMode(functions, synthesizer);
   if (gpuEnabled) {
     console.log("✅ GPU mode is enabled");
   } else {
@@ -71,9 +75,9 @@ async function main() {
 
   // 音声モデルをロード
   console.log("\n📥 Loading voice model...");
-  const model = openVoiceModelFile("./voicevox/voicevox_core/models/vvms/0.vvm");
-  loadVoiceModel(synthesizer, model);
-  closeVoiceModelFile(model);
+  const model = openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
+  loadVoiceModel(functions, synthesizer, model);
+  closeVoiceModelFile(functions, model);
   console.log("✅ Voice model loaded");
 
   // 音声合成
@@ -82,7 +86,7 @@ async function main() {
   const styleId = 0;
 
   const startTime = performance.now();
-  const wav = tts(synthesizer, text, styleId);
+  const wav = tts(functions, synthesizer, text, styleId);
   const endTime = performance.now();
 
   console.log(`✅ Generated ${wav.length} bytes of WAV data`);
@@ -94,8 +98,8 @@ async function main() {
   console.log(`💾 Saved to ${outputPath}`);
 
   // クリーンアップ
-  deleteSynthesizer(synthesizer);
-  deleteOpenJtalk(openJtalk);
+  deleteSynthesizer(functions, synthesizer);
+  deleteOpenJtalk(functions, openJtalk);
   console.log("\n✅ Done!");
 }
 

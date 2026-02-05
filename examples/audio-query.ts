@@ -16,10 +16,14 @@ import {
   deleteOpenJtalk,
   closeVoiceModelFile,
 } from "../src/index.js";
+import { loadLibrary } from "../src/ffi/library.js";
 import { writeFile } from "node:fs/promises";
 
 async function main() {
   console.log("🎤 AudioQuery Example\n");
+
+  // ライブラリをロード
+  const functions = loadLibrary();
 
   // 環境変数チェック
   if (!process.env.VOICEVOX_CORE_LIB_PATH) {
@@ -39,18 +43,19 @@ async function main() {
 
   // 初期化
   console.log("⚙️  Initializing...");
-  const onnxruntime = loadOnnxruntime({
+  const onnxruntime = loadOnnxruntime(functions, {
     filename: process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH,
   });
   const openJtalk = createOpenJtalk(
+    functions,
     "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
   );
-  const synthesizer = createSynthesizer(onnxruntime, openJtalk);
+  const synthesizer = createSynthesizer(functions, onnxruntime, openJtalk);
 
   // 音声モデルをロード
-  const model = openVoiceModelFile("./voicevox/voicevox_core/models/vvms/0.vvm");
-  loadVoiceModel(synthesizer, model);
-  closeVoiceModelFile(model);
+  const model = openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
+  loadVoiceModel(functions, synthesizer, model);
+  closeVoiceModelFile(functions, model);
   console.log("✅ Initialized\n");
 
   // AudioQueryを生成
@@ -58,7 +63,7 @@ async function main() {
   const text = "今日はいい天気ですね。";
   const styleId = 0;
 
-  const audioQuery = createAudioQuery(synthesizer, text, styleId);
+  const audioQuery = createAudioQuery(functions, synthesizer, text, styleId);
   console.log("✅ AudioQuery created");
   console.log(`📊 Original parameters:`);
   console.log(`   - Speed: ${audioQuery.speedScale}`);
@@ -81,7 +86,7 @@ async function main() {
 
   // 音声合成
   console.log("\n🎵 Synthesizing speech...");
-  const wav = synthesis(synthesizer, audioQuery, styleId, {
+  const wav = synthesis(functions, synthesizer, audioQuery, styleId, {
     enableInterrogativeUpspeak: true,
   });
   console.log(`✅ Generated ${wav.length} bytes of WAV data`);
@@ -92,8 +97,8 @@ async function main() {
   console.log(`💾 Saved to ${outputPath}`);
 
   // クリーンアップ
-  deleteSynthesizer(synthesizer);
-  deleteOpenJtalk(openJtalk);
+  deleteSynthesizer(functions, synthesizer);
+  deleteOpenJtalk(functions, openJtalk);
   console.log("\n✅ Done!");
 }
 
