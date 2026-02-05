@@ -35,18 +35,15 @@ export async function createSynthesizer(
   openJtalk: OpenJtalkHandle,
   options?: InitializeOptions,
 ): Promise<SynthesizerHandle> {
-  const defaultOptions = functions.voicevox_make_default_initialize_options() as {
-    acceleration_mode: number;
-    cpu_num_threads: number;
-  };
+  const defaultOptions = functions.voicevox_make_default_initialize_options();
 
   const initOptions = {
     acceleration_mode: options?.accelerationMode ?? defaultOptions.acceleration_mode,
     cpu_num_threads: options?.cpuNumThreads ?? defaultOptions.cpu_num_threads,
   };
 
-  const outSynthesizer = [null];
-  const resultCode = await promisifyKoffiAsync<number>(
+  const outSynthesizer: [any] = [null];
+  const resultCode = await promisifyKoffiAsync(
     functions.voicevox_synthesizer_new,
     onnxruntime,
     openJtalk,
@@ -55,7 +52,7 @@ export async function createSynthesizer(
   );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
-    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
   }
 
@@ -94,14 +91,14 @@ export async function loadVoiceModel(
   synthesizer: SynthesizerHandle,
   model: VoiceModelFileHandle,
 ): Promise<void> {
-  const resultCode = await promisifyKoffiAsync<number>(
+  const resultCode = await promisifyKoffiAsync(
     functions.voicevox_synthesizer_load_voice_model,
     synthesizer,
     model,
   );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
-    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
   }
 }
@@ -119,13 +116,10 @@ export function unloadVoiceModel(
   synthesizer: SynthesizerHandle,
   modelId: Uint8Array,
 ): void {
-  const resultCode = functions.voicevox_synthesizer_unload_voice_model(
-    synthesizer,
-    modelId,
-  ) as number;
+  const resultCode = functions.voicevox_synthesizer_unload_voice_model(synthesizer, modelId);
 
   if (resultCode !== VoicevoxResultCode.Ok) {
-    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
   }
 }
@@ -141,7 +135,7 @@ export function isGpuMode(
   functions: VoicevoxCoreFunctions,
   synthesizer: SynthesizerHandle,
 ): boolean {
-  return functions.voicevox_synthesizer_is_gpu_mode(synthesizer) as boolean;
+  return functions.voicevox_synthesizer_is_gpu_mode(synthesizer);
 }
 
 /**
@@ -157,7 +151,7 @@ export function isLoadedVoiceModel(
   synthesizer: SynthesizerHandle,
   modelId: Uint8Array,
 ): boolean {
-  return functions.voicevox_synthesizer_is_loaded_voice_model(synthesizer, modelId) as boolean;
+  return functions.voicevox_synthesizer_is_loaded_voice_model(synthesizer, modelId);
 }
 
 /**
@@ -172,7 +166,7 @@ export function getSynthesizerMetasJson(
   synthesizer: SynthesizerHandle,
 ): string {
   const jsonPtr = functions.voicevox_synthesizer_create_metas_json(synthesizer);
-  const jsonStr = koffi.decode(jsonPtr, "string") as string;
+  const jsonStr = koffi.decode(jsonPtr, "string");
 
   freeJson(functions.lib, jsonPtr);
 
@@ -195,8 +189,8 @@ export async function createAudioQuery(
   text: string,
   styleId: number,
 ): Promise<AudioQuery> {
-  const outJson = [null];
-  const resultCode = await promisifyKoffiAsync<number>(
+  const outJson: [any] = [null];
+  const resultCode = await promisifyKoffiAsync(
     functions.voicevox_synthesizer_create_audio_query,
     synthesizer,
     text,
@@ -205,12 +199,12 @@ export async function createAudioQuery(
   );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
-    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
   }
 
   const jsonPtr = outJson[0];
-  const jsonStr = koffi.decode(jsonPtr, "string") as string;
+  const jsonStr = koffi.decode(jsonPtr, "string");
 
   freeJson(functions.lib, jsonPtr);
 
@@ -235,9 +229,7 @@ export async function synthesis(
   styleId: number,
   options?: SynthesisOptions,
 ): Promise<Uint8Array> {
-  const defaultOptions = functions.voicevox_make_default_synthesis_options() as {
-    enable_interrogative_upspeak: boolean;
-  };
+  const defaultOptions = functions.voicevox_make_default_synthesis_options();
 
   const synthesisOptions = {
     enable_interrogative_upspeak:
@@ -245,10 +237,10 @@ export async function synthesis(
   };
 
   const audioQueryJson = JSON.stringify(audioQuery);
-  const outLength = [0];
-  const outWav = [null];
+  const outLength: [number] = [0];
+  const outWav: [any] = [null];
 
-  const resultCode = await promisifyKoffiAsync<number>(
+  const resultCode = await promisifyKoffiAsync(
     functions.voicevox_synthesizer_synthesis,
     synthesizer,
     audioQueryJson,
@@ -259,16 +251,16 @@ export async function synthesis(
   );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
-    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
   }
 
   const wavPtr = outWav[0];
-  const length = outLength[0] as number;
+  const length = outLength[0];
 
   // WAVデータをUint8Arrayにコピー
   const wavData = new Uint8Array(length);
-  const srcBuffer = koffi.decode(wavPtr, koffi.array("uint8", length)) as Uint8Array;
+  const srcBuffer = koffi.decode(wavPtr, koffi.array("uint8", length));
   wavData.set(srcBuffer);
 
   freeWav(functions.lib, wavPtr);
@@ -294,19 +286,17 @@ export async function tts(
   styleId: number,
   options?: TtsOptions,
 ): Promise<Uint8Array> {
-  const defaultOptions = functions.voicevox_make_default_tts_options() as {
-    enable_interrogative_upspeak: boolean;
-  };
+  const defaultOptions = functions.voicevox_make_default_tts_options();
 
   const ttsOptions = {
     enable_interrogative_upspeak:
       options?.enableInterrogativeUpspeak ?? defaultOptions.enable_interrogative_upspeak,
   };
 
-  const outLength = [0];
-  const outWav = [null];
+  const outLength: [number] = [0];
+  const outWav: [any] = [null];
 
-  const resultCode = await promisifyKoffiAsync<number>(
+  const resultCode = await promisifyKoffiAsync(
     functions.voicevox_synthesizer_tts,
     synthesizer,
     text,
@@ -317,16 +307,16 @@ export async function tts(
   );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
-    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
   }
 
   const wavPtr = outWav[0];
-  const length = outLength[0] as number;
+  const length = outLength[0];
 
   // WAVデータをUint8Arrayにコピー
   const wavData = new Uint8Array(length);
-  const srcBuffer = koffi.decode(wavPtr, koffi.array("uint8", length)) as Uint8Array;
+  const srcBuffer = koffi.decode(wavPtr, koffi.array("uint8", length));
   wavData.set(srcBuffer);
 
   freeWav(functions.lib, wavPtr);

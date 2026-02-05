@@ -24,23 +24,21 @@ export async function loadOnnxruntime(
   functions: VoicevoxCoreFunctions,
   options?: LoadOnnxruntimeOptions,
 ): Promise<OnnxruntimeHandle> {
-  const defaultOptions = functions.voicevox_make_default_load_onnxruntime_options() as {
-    filename: string;
-  };
+  const defaultOptions = functions.voicevox_make_default_load_onnxruntime_options();
 
   const loadOptions = {
     filename: options?.filename ?? defaultOptions.filename,
   };
 
-  const outOnnxruntime = [null];
-  const resultCode = await promisifyKoffiAsync<number>(
+  const outOnnxruntime: [any] = [null];
+  const resultCode = await promisifyKoffiAsync(
     functions.voicevox_onnxruntime_load_once,
     loadOptions,
     outOnnxruntime,
   );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
-    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
   }
 
@@ -82,19 +80,19 @@ export function getOnnxruntimeSupportedDevicesJson(
   functions: VoicevoxCoreFunctions,
   onnxruntime: OnnxruntimeHandle,
 ): string {
-  const outJson = [null];
+  const outJson: [any] = [null];
   const resultCode = functions.voicevox_onnxruntime_create_supported_devices_json(
     onnxruntime,
     outJson,
-  ) as number;
+  );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
-    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
   }
 
   const jsonPtr = outJson[0];
-  const jsonStr = koffi.decode(jsonPtr, "string") as string;
+  const jsonStr = koffi.decode(jsonPtr, "string");
 
   freeJson(functions.lib, jsonPtr);
 
@@ -108,5 +106,5 @@ export function getOnnxruntimeSupportedDevicesJson(
  * @returns バージョン文字列
  */
 export function getVersion(functions: VoicevoxCoreFunctions): string {
-  return functions.voicevox_get_version() as string;
+  return functions.voicevox_get_version();
 }

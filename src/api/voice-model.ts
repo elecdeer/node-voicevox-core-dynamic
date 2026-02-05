@@ -22,15 +22,15 @@ export async function openVoiceModelFile(
   functions: VoicevoxCoreFunctions,
   path: string,
 ): Promise<VoiceModelFileHandle> {
-  const outModel = [null];
-  const resultCode = await promisifyKoffiAsync<number>(
+  const outModel: [any] = [null];
+  const resultCode = await promisifyKoffiAsync(
     functions.voicevox_voice_model_file_open,
     path,
     outModel,
   );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
-    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
   }
 
@@ -71,7 +71,7 @@ export function getVoiceModelMetasJson(
   model: VoiceModelFileHandle,
 ): string {
   const jsonPtr = functions.voicevox_voice_model_file_create_metas_json(model);
-  const jsonStr = koffi.decode(jsonPtr, "string") as string;
+  const jsonStr = koffi.decode(jsonPtr, "string");
 
   freeJson(functions.lib, jsonPtr);
 

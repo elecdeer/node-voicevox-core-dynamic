@@ -4,7 +4,7 @@
  * voicevox_core C APIの関数をkoffiで宣言する
  */
 
-import type { IKoffiLib } from "koffi";
+import type { IKoffiLib, KoffiFunc } from "koffi";
 import koffi from "koffi";
 
 // ========================================
@@ -18,11 +18,14 @@ import koffi from "koffi";
  * @param args - 関数に渡す引数
  * @returns 関数の実行結果を返すPromise
  */
-export function promisifyKoffiAsync<T>(func: any, ...args: any[]): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
+export function promisifyKoffiAsync<TFunc extends (...args: any[]) => any>(
+  func: KoffiFunc<TFunc>,
+  ...args: Parameters<TFunc>
+): Promise<ReturnType<TFunc>> {
+  return new Promise<ReturnType<TFunc>>((resolve, reject) => {
     func.async(
       ...args,
-      (err: Error | null, res: T) => {
+      (err: Error | null, res: ReturnType<TFunc>) => {
         if (err) {
           reject(err);
         } else {
@@ -131,61 +134,120 @@ export type VoicevoxResultCodeRaw = number; // int32_t
 export interface VoicevoxCoreFunctions {
   // ライブラリインスタンス
   lib: IKoffiLib;
+
   // ONNX Runtime関連
-  voicevox_get_onnxruntime_lib_versioned_filename: (...args: unknown[]) => unknown;
-  voicevox_get_onnxruntime_lib_unversioned_filename: (...args: unknown[]) => unknown;
-  voicevox_make_default_load_onnxruntime_options: (...args: unknown[]) => unknown;
-  voicevox_onnxruntime_get: (...args: unknown[]) => unknown;
-  voicevox_onnxruntime_load_once: (...args: unknown[]) => unknown;
-  voicevox_onnxruntime_create_supported_devices_json: (...args: unknown[]) => unknown;
+  voicevox_get_onnxruntime_lib_versioned_filename: KoffiFunc<() => string>;
+  voicevox_get_onnxruntime_lib_unversioned_filename: KoffiFunc<() => string>;
+  voicevox_make_default_load_onnxruntime_options: KoffiFunc<() => { filename: string }>;
+  voicevox_onnxruntime_get: KoffiFunc<() => any>;
+  voicevox_onnxruntime_load_once: KoffiFunc<
+    (options: { filename: string }, outOnnxruntime: [any]) => number
+  >;
+  voicevox_onnxruntime_create_supported_devices_json: KoffiFunc<
+    (onnxruntime: any, outJson: [any]) => number
+  >;
 
   // Open JTalk関連
-  voicevox_open_jtalk_rc_new: (...args: unknown[]) => unknown;
-  voicevox_open_jtalk_rc_use_user_dict: (...args: unknown[]) => unknown;
-  voicevox_open_jtalk_rc_analyze: (...args: unknown[]) => unknown;
-  voicevox_open_jtalk_rc_delete: (...args: unknown[]) => unknown;
+  voicevox_open_jtalk_rc_new: KoffiFunc<(dictDir: string, outOpenJtalk: [any]) => number>;
+  voicevox_open_jtalk_rc_use_user_dict: KoffiFunc<(openJtalk: any, userDict: any) => number>;
+  voicevox_open_jtalk_rc_analyze: KoffiFunc<
+    (openJtalk: any, text: string, outJson: [any]) => number
+  >;
+  voicevox_open_jtalk_rc_delete: KoffiFunc<(openJtalk: any) => void>;
 
   // 音声モデル関連
-  voicevox_voice_model_file_open: (...args: unknown[]) => unknown;
-  voicevox_voice_model_file_id: (...args: unknown[]) => unknown;
-  voicevox_voice_model_file_create_metas_json: (...args: unknown[]) => unknown;
-  voicevox_voice_model_file_delete: (...args: unknown[]) => unknown;
+  voicevox_voice_model_file_open: KoffiFunc<(path: string, outModel: [any]) => number>;
+  voicevox_voice_model_file_id: KoffiFunc<(model: any, outId: Uint8Array) => void>;
+  voicevox_voice_model_file_create_metas_json: KoffiFunc<(model: any) => any>;
+  voicevox_voice_model_file_delete: KoffiFunc<(model: any) => void>;
 
   // シンセサイザ関連
-  voicevox_make_default_initialize_options: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_new: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_delete: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_load_voice_model: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_unload_voice_model: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_get_onnxruntime: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_is_gpu_mode: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_is_loaded_voice_model: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_create_metas_json: (...args: unknown[]) => unknown;
+  voicevox_make_default_initialize_options: KoffiFunc<
+    () => { acceleration_mode: number; cpu_num_threads: number }
+  >;
+  voicevox_synthesizer_new: KoffiFunc<
+    (
+      onnxruntime: any,
+      openJtalk: any,
+      options: { acceleration_mode: number; cpu_num_threads: number },
+      outSynthesizer: [any],
+    ) => number
+  >;
+  voicevox_synthesizer_delete: KoffiFunc<(synthesizer: any) => void>;
+  voicevox_synthesizer_load_voice_model: KoffiFunc<(synthesizer: any, model: any) => number>;
+  voicevox_synthesizer_unload_voice_model: KoffiFunc<
+    (synthesizer: any, modelId: Uint8Array) => number
+  >;
+  voicevox_synthesizer_get_onnxruntime: KoffiFunc<(synthesizer: any) => any>;
+  voicevox_synthesizer_is_gpu_mode: KoffiFunc<(synthesizer: any) => boolean>;
+  voicevox_synthesizer_is_loaded_voice_model: KoffiFunc<
+    (synthesizer: any, modelId: Uint8Array) => boolean
+  >;
+  voicevox_synthesizer_create_metas_json: KoffiFunc<(synthesizer: any) => any>;
 
   // AudioQuery/AccentPhrase生成
-  voicevox_synthesizer_create_audio_query: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_create_audio_query_from_kana: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_create_accent_phrases: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_create_accent_phrases_from_kana: (...args: unknown[]) => unknown;
-  voicevox_audio_query_create_from_accent_phrases: (...args: unknown[]) => unknown;
+  voicevox_synthesizer_create_audio_query: KoffiFunc<
+    (synthesizer: any, text: string, styleId: number, outJson: [any]) => number
+  >;
+  voicevox_synthesizer_create_audio_query_from_kana: KoffiFunc<
+    (synthesizer: any, kana: string, styleId: number, outJson: [any]) => number
+  >;
+  voicevox_synthesizer_create_accent_phrases: KoffiFunc<
+    (synthesizer: any, text: string, styleId: number, outJson: [any]) => number
+  >;
+  voicevox_synthesizer_create_accent_phrases_from_kana: KoffiFunc<
+    (synthesizer: any, kana: string, styleId: number, outJson: [any]) => number
+  >;
+  voicevox_audio_query_create_from_accent_phrases: KoffiFunc<
+    (accentPhrasesJson: string, outJson: [any]) => number
+  >;
 
   // 音声合成
-  voicevox_make_default_synthesis_options: (...args: unknown[]) => unknown;
-  voicevox_make_default_tts_options: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_synthesis: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_tts: (...args: unknown[]) => unknown;
-  voicevox_synthesizer_tts_from_kana: (...args: unknown[]) => unknown;
+  voicevox_make_default_synthesis_options: KoffiFunc<
+    () => { enable_interrogative_upspeak: boolean }
+  >;
+  voicevox_make_default_tts_options: KoffiFunc<() => { enable_interrogative_upspeak: boolean }>;
+  voicevox_synthesizer_synthesis: KoffiFunc<
+    (
+      synthesizer: any,
+      audioQueryJson: string,
+      styleId: number,
+      options: { enable_interrogative_upspeak: boolean },
+      outLength: [number],
+      outWav: [any],
+    ) => number
+  >;
+  voicevox_synthesizer_tts: KoffiFunc<
+    (
+      synthesizer: any,
+      text: string,
+      styleId: number,
+      options: { enable_interrogative_upspeak: boolean },
+      outLength: [number],
+      outWav: [any],
+    ) => number
+  >;
+  voicevox_synthesizer_tts_from_kana: KoffiFunc<
+    (
+      synthesizer: any,
+      kana: string,
+      styleId: number,
+      options: { enable_interrogative_upspeak: boolean },
+      outLength: [number],
+      outWav: [any],
+    ) => number
+  >;
 
   // バリデーション
-  voicevox_audio_query_validate: (...args: unknown[]) => unknown;
-  voicevox_accent_phrase_validate: (...args: unknown[]) => unknown;
-  voicevox_mora_validate: (...args: unknown[]) => unknown;
+  voicevox_audio_query_validate: KoffiFunc<(audioQueryJson: string) => number>;
+  voicevox_accent_phrase_validate: KoffiFunc<(accentPhraseJson: string) => number>;
+  voicevox_mora_validate: KoffiFunc<(moraJson: string) => number>;
 
   // ユーティリティ
-  voicevox_get_version: (...args: unknown[]) => unknown;
-  voicevox_error_result_to_message: (...args: unknown[]) => unknown;
-  voicevox_json_free: (...args: unknown[]) => unknown;
-  voicevox_wav_free: (...args: unknown[]) => unknown;
+  voicevox_get_version: KoffiFunc<() => string>;
+  voicevox_error_result_to_message: KoffiFunc<(resultCode: number) => string>;
+  voicevox_json_free: KoffiFunc<(json: any) => void>;
+  voicevox_wav_free: KoffiFunc<(wav: any) => void>;
 }
 
 /**

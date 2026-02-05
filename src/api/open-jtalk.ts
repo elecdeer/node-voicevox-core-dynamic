@@ -20,15 +20,15 @@ export async function createOpenJtalk(
   functions: VoicevoxCoreFunctions,
   dictDir: string,
 ): Promise<OpenJtalkHandle> {
-  const outOpenJtalk = [null];
-  const resultCode = await promisifyKoffiAsync<number>(
+  const outOpenJtalk: [any] = [null];
+  const resultCode = await promisifyKoffiAsync(
     functions.voicevox_open_jtalk_rc_new,
     dictDir,
     outOpenJtalk,
   );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
-    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
   }
 
