@@ -20,7 +20,6 @@ import {
 } from "../src/index.js";
 import { loadLibrary } from "../src/ffi/library.js";
 import { writeFile } from "node:fs/promises";
-import { freeJson } from "../src/utils/memory.js";
 
 async function main() {
   // ライブラリをロード

@@ -31,7 +31,7 @@ export async function openVoiceModelFile(
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode) as string;
-    throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
+    throw new VoicevoxError(resultCode, message);
   }
 
   const handle = outModel[0];

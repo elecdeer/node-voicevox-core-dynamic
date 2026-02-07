@@ -29,7 +29,7 @@ export async function createOpenJtalk(
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
-    throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
+    throw new VoicevoxError(resultCode, message);
   }
 
   const handle = outOpenJtalk[0];

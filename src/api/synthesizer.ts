@@ -42,7 +42,7 @@ export async function createSynthesizer(
     cpu_num_threads: options?.cpuNumThreads ?? defaultOptions.cpu_num_threads,
   };
 
-  const outSynthesizer: [any] = [null];
+  const outSynthesizer: [SynthesizerHandle | null] = [null];
   const resultCode = await promisifyKoffiAsync(
     functions.voicevox_synthesizer_new,
     onnxruntime,
@@ -53,7 +53,7 @@ export async function createSynthesizer(
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
-    throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
+    throw new VoicevoxError(resultCode, message);
   }
 
   const handle = outSynthesizer[0];
@@ -61,7 +61,7 @@ export async function createSynthesizer(
     throw new Error("Failed to create synthesizer: null handle returned");
   }
 
-  return handle as SynthesizerHandle;
+  return handle;
 }
 
 /**
@@ -99,7 +99,7 @@ export async function loadVoiceModel(
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
-    throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
+    throw new VoicevoxError(resultCode, message);
   }
 }
 
@@ -120,7 +120,7 @@ export function unloadVoiceModel(
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
-    throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
+    throw new VoicevoxError(resultCode, message);
   }
 }
 
@@ -192,7 +192,7 @@ export async function createAudioQuery(
   text: string,
   styleId: number,
 ): Promise<AudioQuery> {
-  const outJson: [any] = [null];
+  const outJson: [unknown] = [null];
   const resultCode = await promisifyKoffiAsync(
     functions.voicevox_synthesizer_create_audio_query,
     synthesizer,
@@ -203,7 +203,7 @@ export async function createAudioQuery(
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
-    throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
+    throw new VoicevoxError(resultCode, message);
   }
 
   const jsonPtr = outJson[0];
@@ -258,7 +258,7 @@ export async function synthesis(
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
-    throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
+    throw new VoicevoxError(resultCode, message);
   }
 
   const wavPtr = outWav[0];
@@ -314,7 +314,7 @@ export async function tts(
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
-    throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
+    throw new VoicevoxError(resultCode, message);
   }
 
   const wavPtr = outWav[0];

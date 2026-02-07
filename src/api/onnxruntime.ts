@@ -39,7 +39,7 @@ export async function loadOnnxruntime(
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
-    throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
+    throw new VoicevoxError(resultCode, message);
   }
 
   const handle = outOnnxruntime[0];
@@ -88,7 +88,7 @@ export function getOnnxruntimeSupportedDevicesJson(
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
-    throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
+    throw new VoicevoxError(resultCode, message);
   }
 
   const jsonPtr = outJson[0];
