@@ -94,7 +94,7 @@ async function main() {
 
   // 複数モデルを同時にロードすることも可能
   console.log("\n📥 Loading multiple models...");
-  const modelA = await openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
+  const modelA = await openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/1.vvm");
   await loadVoiceModel(functions, synthesizer, modelA);
   closeVoiceModelFile(functions, modelA);
   console.log("✅ Model A loaded");

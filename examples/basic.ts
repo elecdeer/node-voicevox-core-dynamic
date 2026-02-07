@@ -9,6 +9,7 @@ import {
   loadOnnxruntime,
   createOpenJtalk,
   createSynthesizer,
+  getVoiceModelMetasJson,
   openVoiceModelFile,
   loadVoiceModel,
   tts,
@@ -19,6 +20,7 @@ import {
 } from "../src/index.js";
 import { loadLibrary } from "../src/ffi/library.js";
 import { writeFile } from "node:fs/promises";
+import { freeJson } from "../src/utils/memory.js";
 
 async function main() {
   // ライブラリをロード
@@ -69,8 +71,12 @@ async function main() {
   // 音声モデルをロード
   console.log("\n📥 Loading voice model...");
   const model = await openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
+
   await loadVoiceModel(functions, synthesizer, model);
   console.log("✅ Voice model loaded");
+
+  const meta = getVoiceModelMetasJson(functions, model);
+  console.log("🗂️  Voice Model Meta:", JSON.stringify(meta, null, 2));
 
   // モデルファイルは閉じてOK（内部でコピーされている）
   closeVoiceModelFile(functions, model);
