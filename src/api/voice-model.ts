@@ -22,7 +22,7 @@ export async function openVoiceModelFile(
   functions: VoicevoxCoreFunctions,
   path: string,
 ): Promise<VoiceModelFileHandle> {
-  const outModel: [any] = [null];
+  const outModel: [VoiceModelFileHandle | null] = [null];
   const resultCode = await promisifyKoffiAsync(
     functions.voicevox_voice_model_file_open,
     path,
@@ -39,7 +39,7 @@ export async function openVoiceModelFile(
     throw new Error("Failed to open voice model file: null handle returned");
   }
 
-  return handle as VoiceModelFileHandle;
+  return handle;
 }
 
 /**

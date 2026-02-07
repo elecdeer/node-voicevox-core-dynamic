@@ -12,6 +12,8 @@ import type {
   SynthesizerHandle,
   VoiceModelFileHandle,
   UserDictHandle,
+  OutJsonStringHandle,
+  OutWavDataHandle,
   VoicevoxResultCode,
 } from "../types/index.js";
 
@@ -150,7 +152,7 @@ export interface VoicevoxCoreFunctions {
     ) => VoicevoxResultCode
   >;
   voicevox_onnxruntime_create_supported_devices_json: KoffiFunc<
-    (onnxruntime: OnnxruntimeHandle, outJson: [any]) => VoicevoxResultCode
+    (onnxruntime: OnnxruntimeHandle, outJson: [OutJsonStringHandle | null]) => VoicevoxResultCode
   >;
 
   // Open JTalk関連
@@ -161,7 +163,11 @@ export interface VoicevoxCoreFunctions {
     (openJtalk: OpenJtalkHandle, userDict: UserDictHandle) => VoicevoxResultCode
   >;
   voicevox_open_jtalk_rc_analyze: KoffiFunc<
-    (openJtalk: OpenJtalkHandle, text: string, outJson: [any]) => VoicevoxResultCode
+    (
+      openJtalk: OpenJtalkHandle,
+      text: string,
+      outJson: [OutJsonStringHandle | null],
+    ) => VoicevoxResultCode
   >;
   voicevox_open_jtalk_rc_delete: KoffiFunc<(openJtalk: OpenJtalkHandle) => void>;
 
@@ -170,7 +176,9 @@ export interface VoicevoxCoreFunctions {
     (path: string, outModel: [VoiceModelFileHandle | null]) => VoicevoxResultCode
   >;
   voicevox_voice_model_file_id: KoffiFunc<(model: VoiceModelFileHandle, outId: Uint8Array) => void>;
-  voicevox_voice_model_file_create_metas_json: KoffiFunc<(model: VoiceModelFileHandle) => any>;
+  voicevox_voice_model_file_create_metas_json: KoffiFunc<
+    (model: VoiceModelFileHandle) => OutJsonStringHandle
+  >;
   voicevox_voice_model_file_delete: KoffiFunc<(model: VoiceModelFileHandle) => void>;
 
   // シンセサイザ関連
@@ -199,7 +207,9 @@ export interface VoicevoxCoreFunctions {
   voicevox_synthesizer_is_loaded_voice_model: KoffiFunc<
     (synthesizer: SynthesizerHandle, modelId: Uint8Array) => boolean
   >;
-  voicevox_synthesizer_create_metas_json: KoffiFunc<(synthesizer: SynthesizerHandle) => any>;
+  voicevox_synthesizer_create_metas_json: KoffiFunc<
+    (synthesizer: SynthesizerHandle) => OutJsonStringHandle
+  >;
 
   // AudioQuery/AccentPhrase生成
   voicevox_synthesizer_create_audio_query: KoffiFunc<
@@ -207,7 +217,7 @@ export interface VoicevoxCoreFunctions {
       synthesizer: SynthesizerHandle,
       text: string,
       styleId: number,
-      outJson: [any],
+      outJson: [OutJsonStringHandle | null],
     ) => VoicevoxResultCode
   >;
   voicevox_synthesizer_create_audio_query_from_kana: KoffiFunc<
@@ -215,7 +225,7 @@ export interface VoicevoxCoreFunctions {
       synthesizer: SynthesizerHandle,
       kana: string,
       styleId: number,
-      outJson: [any],
+      outJson: [OutJsonStringHandle | null],
     ) => VoicevoxResultCode
   >;
   voicevox_synthesizer_create_accent_phrases: KoffiFunc<
@@ -223,7 +233,7 @@ export interface VoicevoxCoreFunctions {
       synthesizer: SynthesizerHandle,
       text: string,
       styleId: number,
-      outJson: [any],
+      outJson: [OutJsonStringHandle | null],
     ) => VoicevoxResultCode
   >;
   voicevox_synthesizer_create_accent_phrases_from_kana: KoffiFunc<
@@ -231,11 +241,11 @@ export interface VoicevoxCoreFunctions {
       synthesizer: SynthesizerHandle,
       kana: string,
       styleId: number,
-      outJson: [any],
+      outJson: [OutJsonStringHandle | null],
     ) => VoicevoxResultCode
   >;
   voicevox_audio_query_create_from_accent_phrases: KoffiFunc<
-    (accentPhrasesJson: string, outJson: [any]) => VoicevoxResultCode
+    (accentPhrasesJson: string, outJson: [OutJsonStringHandle | null]) => VoicevoxResultCode
   >;
 
   // 音声合成
@@ -250,7 +260,7 @@ export interface VoicevoxCoreFunctions {
       styleId: number,
       options: { enable_interrogative_upspeak: boolean },
       outLength: [number],
-      outWav: [any],
+      outWav: [OutWavDataHandle | null],
     ) => VoicevoxResultCode
   >;
   voicevox_synthesizer_tts: KoffiFunc<
@@ -260,7 +270,7 @@ export interface VoicevoxCoreFunctions {
       styleId: number,
       options: { enable_interrogative_upspeak: boolean },
       outLength: [number],
-      outWav: [any],
+      outWav: [OutWavDataHandle | null],
     ) => VoicevoxResultCode
   >;
   voicevox_synthesizer_tts_from_kana: KoffiFunc<
@@ -270,7 +280,7 @@ export interface VoicevoxCoreFunctions {
       styleId: number,
       options: { enable_interrogative_upspeak: boolean },
       outLength: [number],
-      outWav: [any],
+      outWav: [OutWavDataHandle | null],
     ) => VoicevoxResultCode
   >;
 
@@ -282,8 +292,8 @@ export interface VoicevoxCoreFunctions {
   // ユーティリティ
   voicevox_get_version: KoffiFunc<() => string>;
   voicevox_error_result_to_message: KoffiFunc<(resultCode: VoicevoxResultCode) => string>;
-  voicevox_json_free: KoffiFunc<(json: any) => void>;
-  voicevox_wav_free: KoffiFunc<(wav: any) => void>;
+  voicevox_json_free: KoffiFunc<(json: OutJsonStringHandle) => void>;
+  voicevox_wav_free: KoffiFunc<(wav: OutWavDataHandle) => void>;
 }
 
 /**

@@ -5,7 +5,11 @@
 import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
 import { promisifyKoffiAsync } from "../ffi/functions.js";
 import { VoicevoxResultCode } from "../types/enums.js";
-import type { LoadOnnxruntimeOptions, OnnxruntimeHandle } from "../types/index.js";
+import type {
+  LoadOnnxruntimeOptions,
+  OnnxruntimeHandle,
+  OutJsonStringHandle,
+} from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
 import { freeJson } from "../utils/memory.js";
 import koffi from "koffi";
@@ -30,7 +34,7 @@ export async function loadOnnxruntime(
     filename: options?.filename ?? defaultOptions.filename,
   };
 
-  const outOnnxruntime: [any] = [null];
+  const outOnnxruntime: [OnnxruntimeHandle | null] = [null];
   const resultCode = await promisifyKoffiAsync(
     functions.voicevox_onnxruntime_load_once,
     loadOptions,
@@ -80,7 +84,7 @@ export function getOnnxruntimeSupportedDevicesJson(
   functions: VoicevoxCoreFunctions,
   onnxruntime: OnnxruntimeHandle,
 ): string {
-  const outJson: [any] = [null];
+  const outJson: [OutJsonStringHandle | null] = [null];
   const resultCode = functions.voicevox_onnxruntime_create_supported_devices_json(
     onnxruntime,
     outJson,

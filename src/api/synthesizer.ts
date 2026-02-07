@@ -10,6 +10,8 @@ import type {
   OpenJtalkHandle,
   SynthesizerHandle,
   VoiceModelFileHandle,
+  OutJsonStringHandle,
+  OutWavDataHandle,
   InitializeOptions,
   SynthesisOptions,
   TtsOptions,
@@ -192,7 +194,7 @@ export async function createAudioQuery(
   text: string,
   styleId: number,
 ): Promise<AudioQuery> {
-  const outJson: [unknown] = [null];
+  const outJson: [OutJsonStringHandle | null] = [null];
   const resultCode = await promisifyKoffiAsync(
     functions.voicevox_synthesizer_create_audio_query,
     synthesizer,
@@ -244,7 +246,7 @@ export async function synthesis(
 
   const audioQueryJson = JSON.stringify(audioQuery);
   const outLength: [number] = [0];
-  const outWav: [any] = [null];
+  const outWav: [OutWavDataHandle | null] = [null];
 
   const resultCode = await promisifyKoffiAsync(
     functions.voicevox_synthesizer_synthesis,
@@ -300,7 +302,7 @@ export async function tts(
   };
 
   const outLength: [number] = [0];
-  const outWav: [any] = [null];
+  const outWav: [OutWavDataHandle | null] = [null];
 
   const resultCode = await promisifyKoffiAsync(
     functions.voicevox_synthesizer_tts,

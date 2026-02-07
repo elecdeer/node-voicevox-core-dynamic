@@ -9,6 +9,8 @@ declare const OpenJtalkHandleBrand: unique symbol;
 declare const SynthesizerHandleBrand: unique symbol;
 declare const VoiceModelFileHandleBrand: unique symbol;
 declare const UserDictHandleBrand: unique symbol;
+declare const OutJsonStringHandleBrand: unique symbol;
+declare const OutWavDataHandleBrand: unique symbol;
 
 /**
  * ONNX Runtimeハンドル
@@ -61,6 +63,30 @@ export type VoiceModelFileHandle = {
  */
 export type UserDictHandle = {
   readonly [UserDictHandleBrand]: never;
+  /** @internal */
+  readonly _ptr: unknown;
+};
+
+/**
+ * JSON文字列出力ハンドル
+ *
+ * C APIの関数から出力されるJSON文字列ポインタ
+ * voicevox_json_freeで解放する必要がある
+ */
+export type OutJsonStringHandle = {
+  readonly [OutJsonStringHandleBrand]: never;
+  /** @internal */
+  readonly _ptr: unknown;
+};
+
+/**
+ * WAVデータ出力ハンドル
+ *
+ * C APIの関数から出力されるWAVデータポインタ
+ * voicevox_wav_freeで解放する必要がある
+ */
+export type OutWavDataHandle = {
+  readonly [OutWavDataHandleBrand]: never;
   /** @internal */
   readonly _ptr: unknown;
 };

@@ -20,7 +20,7 @@ export async function createOpenJtalk(
   functions: VoicevoxCoreFunctions,
   dictDir: string,
 ): Promise<OpenJtalkHandle> {
-  const outOpenJtalk: [any] = [null];
+  const outOpenJtalk: [OpenJtalkHandle | null] = [null];
   const resultCode = await promisifyKoffiAsync(
     functions.voicevox_open_jtalk_rc_new,
     dictDir,
@@ -37,7 +37,7 @@ export async function createOpenJtalk(
     throw new Error("Failed to create OpenJtalk: null handle returned");
   }
 
-  return handle as OpenJtalkHandle;
+  return handle;
 }
 
 /**
