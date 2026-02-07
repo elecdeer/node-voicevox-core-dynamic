@@ -30,7 +30,7 @@ export async function openVoiceModelFile(
   );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
-    const message = functions.voicevox_error_result_to_message(resultCode);
+    const message = functions.voicevox_error_result_to_message(resultCode) as string;
     throw new VoicevoxError(resultCode as VoicevoxResultCode, message);
   }
 
@@ -71,8 +71,12 @@ export function getVoiceModelMetasJson(
   model: VoiceModelFileHandle,
 ): string {
   const jsonPtr = functions.voicevox_voice_model_file_create_metas_json(model);
-  const jsonStr = koffi.decode(jsonPtr, "string");
 
+  // void*から文字列を取得する
+  // lenに-1を指定することで、null終端文字列として自動的に長さを検出
+  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+
+  // C側で確保されたメモリを解放
   freeJson(functions.lib, jsonPtr);
 
   return jsonStr;

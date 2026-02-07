@@ -8,6 +8,7 @@ declare const OnnxruntimeHandleBrand: unique symbol;
 declare const OpenJtalkHandleBrand: unique symbol;
 declare const SynthesizerHandleBrand: unique symbol;
 declare const VoiceModelFileHandleBrand: unique symbol;
+declare const UserDictHandleBrand: unique symbol;
 
 /**
  * ONNX Runtimeハンドル
@@ -49,6 +50,17 @@ export type SynthesizerHandle = {
  */
 export type VoiceModelFileHandle = {
   readonly [VoiceModelFileHandleBrand]: never;
+  /** @internal */
+  readonly _ptr: unknown;
+};
+
+/**
+ * ユーザー辞書ハンドル
+ *
+ * ユーザー辞書への参照
+ */
+export type UserDictHandle = {
+  readonly [UserDictHandleBrand]: never;
   /** @internal */
   readonly _ptr: unknown;
 };

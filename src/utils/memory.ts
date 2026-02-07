@@ -19,7 +19,7 @@ export function freeJson(lib: IKoffiLib, jsonPtr: unknown): void {
     return;
   }
 
-  const voicevox_json_free = lib.func("void voicevox_json_free(char *json)");
+  const voicevox_json_free = lib.func("void voicevox_json_free(void* json)");
   voicevox_json_free(jsonPtr);
 }
 

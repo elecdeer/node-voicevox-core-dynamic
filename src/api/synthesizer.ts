@@ -166,7 +166,10 @@ export function getSynthesizerMetasJson(
   synthesizer: SynthesizerHandle,
 ): string {
   const jsonPtr = functions.voicevox_synthesizer_create_metas_json(synthesizer);
-  const jsonStr = koffi.decode(jsonPtr, "string");
+
+  // void*から文字列を取得する
+  // lenに-1を指定することで、null終端文字列として自動的に長さを検出
+  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
 
   freeJson(functions.lib, jsonPtr);
 
@@ -204,7 +207,10 @@ export async function createAudioQuery(
   }
 
   const jsonPtr = outJson[0];
-  const jsonStr = koffi.decode(jsonPtr, "string");
+
+  // void*から文字列を取得する
+  // lenに-1を指定することで、null終端文字列として自動的に長さを検出
+  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
 
   freeJson(functions.lib, jsonPtr);
 
