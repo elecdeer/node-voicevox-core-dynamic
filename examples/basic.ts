@@ -14,12 +14,31 @@ import { writeFile } from "node:fs/promises";
 async function main() {
   console.log("🎤 VOICEVOX CORE Node.js Binding Example\n");
 
+  console.log({
+    VOICEVOX_CORE_C_API_PATH: process.env.VOICEVOX_CORE_C_API_PATH,
+    VOICEVOX_ONNXRUNTIME_PATH: process.env.VOICEVOX_ONNXRUNTIME_PATH,
+    VOICEVOX_OPEN_JTALK_DICT_DIR: process.env.VOICEVOX_OPEN_JTALK_DICT_DIR,
+    VOICEVOX_MODELS_PATH: process.env.VOICEVOX_MODELS_PATH,
+    OUTPUT_DIR: process.env.OUTPUT_DIR,
+  });
+
+  if (
+    process.env.VOICEVOX_CORE_C_API_PATH == null ||
+    process.env.VOICEVOX_ONNXRUNTIME_PATH == null ||
+    process.env.VOICEVOX_OPEN_JTALK_DICT_DIR == null ||
+    process.env.VOICEVOX_MODELS_PATH == null ||
+    process.env.OUTPUT_DIR == null
+  ) {
+    throw new Error(
+      "Please set VOICEVOX_CORE_C_API_PATH, VOICEVOX_ONNXRUNTIME_PATH, VOICEVOX_OPEN_JTALK_DICT_DIR, VOICEVOX_MODELS_PATH, and OUTPUT_DIR environment variables.",
+    );
+  }
+
   // クライアントを作成（using宣言により自動的にリソース解放される）
   using client = await createVoicevoxClient({
-    corePath: "./voicevox/voicevox_core/c_api/lib/libvoicevox_core.dylib",
-    onnxruntimePath:
-      "./voicevox/voicevox_core/onnxruntime/lib/libvoicevox_onnxruntime.1.17.3.dylib",
-    openJtalkDictDir: "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
+    corePath: process.env.VOICEVOX_CORE_C_API_PATH!,
+    onnxruntimePath: process.env.VOICEVOX_ONNXRUNTIME_PATH!,
+    openJtalkDictDir: process.env.VOICEVOX_OPEN_JTALK_DICT_DIR!,
   });
 
   console.log(`📦 Version: ${client.getVersion()}`);
@@ -27,7 +46,7 @@ async function main() {
 
   // 音声モデルをロード
   console.log("📥 Loading voice model...");
-  using modelFile = await client.openModelFile("./voicevox/voicevox_core/models/vvms/0.vvm");
+  using modelFile = await client.openModelFile(`${process.env.VOICEVOX_MODELS_PATH}/0.vvm`);
   console.log("🗂️  Voice Model Meta:", JSON.stringify(modelFile.metas, null, 2));
 
   await client.loadModel(modelFile);
@@ -49,7 +68,7 @@ async function main() {
   console.log(`⏱️  Synthesis time: ${(timeEnd - timeStart).toFixed(2)} ms`);
 
   // WAVファイルに保存
-  const outputPath = "output.wav";
+  const outputPath = `${process.env.OUTPUT_DIR}/basic.wav`;
   await writeFile(outputPath, wav);
   console.log(`💾 Saved to ${outputPath}`);
 

@@ -12,12 +12,31 @@ import { writeFile } from "node:fs/promises";
 async function main() {
   console.log("🎤 GPU Mode Example\n");
 
-  // GPUモードでクライアントを作成
-  console.log("🎮 Attempting to create client with GPU mode...");
-   await using client = await createVoicevoxClient({
-    corePath: "./voicevox/voicevox_core/c_api/lib/libvoicevox_core.dylib",
-    onnxruntimePath: "./voicevox/voicevox_core/c_api/lib/libonnxruntime.1.13.1.dylib",
-    openJtalkDictDir: "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
+  console.log({
+    VOICEVOX_CORE_C_API_PATH: process.env.VOICEVOX_CORE_C_API_PATH,
+    VOICEVOX_ONNXRUNTIME_PATH: process.env.VOICEVOX_ONNXRUNTIME_PATH,
+    VOICEVOX_OPEN_JTALK_DICT_DIR: process.env.VOICEVOX_OPEN_JTALK_DICT_DIR,
+    VOICEVOX_MODELS_PATH: process.env.VOICEVOX_MODELS_PATH,
+    OUTPUT_DIR: process.env.OUTPUT_DIR,
+  });
+
+  if (
+    process.env.VOICEVOX_CORE_C_API_PATH == null ||
+    process.env.VOICEVOX_ONNXRUNTIME_PATH == null ||
+    process.env.VOICEVOX_OPEN_JTALK_DICT_DIR == null ||
+    process.env.VOICEVOX_MODELS_PATH == null ||
+    process.env.OUTPUT_DIR == null
+  ) {
+    throw new Error(
+      "Please set VOICEVOX_CORE_C_API_PATH, VOICEVOX_ONNXRUNTIME_PATH, VOICEVOX_OPEN_JTALK_DICT_DIR, VOICEVOX_MODELS_PATH, and OUTPUT_DIR environment variables.",
+    );
+  }
+
+  // クライアントを作成（using宣言により自動的にリソース解放される）
+  using client = await createVoicevoxClient({
+    corePath: process.env.VOICEVOX_CORE_C_API_PATH!,
+    onnxruntimePath: process.env.VOICEVOX_ONNXRUNTIME_PATH!,
+    openJtalkDictDir: process.env.VOICEVOX_OPEN_JTALK_DICT_DIR!,
     initializeOptions: {
       accelerationMode: VoicevoxAccelerationMode.Gpu,
       cpuNumThreads: 0, // auto
@@ -34,9 +53,7 @@ async function main() {
 
   // 音声モデルをロード
   console.log("\n📥 Loading voice model...");
-   await using modelFile = await client.openModelFile(
-    "./voicevox/voicevox_core/models/vvms/0.vvm",
-  );
+  using modelFile = await client.openModelFile(`${process.env.VOICEVOX_MODELS_PATH}/0.vvm`);
   await client.loadModel(modelFile);
   console.log("✅ Voice model loaded");
 
@@ -53,7 +70,9 @@ async function main() {
   console.log(`⏱️  Synthesis time: ${(endTime - startTime).toFixed(2)}ms`);
 
   // 保存
-  const outputPath = gpuEnabled ? "output_gpu.wav" : "output_cpu.wav";
+  const outputPath = gpuEnabled
+    ? `${process.env.OUTPUT_DIR}/output_gpu.wav`
+    : `${process.env.OUTPUT_DIR}/output_cpu.wav`;
   await writeFile(outputPath, wav);
   console.log(`💾 Saved to ${outputPath}`);
 

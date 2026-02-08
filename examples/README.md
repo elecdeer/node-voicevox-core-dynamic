@@ -18,7 +18,7 @@
 `using`宣言によってリソース管理が自動化されています。
 
 ```bash
-pnpm tsx examples/basic.ts
+pnpm tsx --env-file=.env examples/basic.ts
 ```
 
 **学べること:**
@@ -36,7 +36,7 @@ AudioQueryを生成してパラメータを調整する例です。
 高レベルAPIで簡潔に記述できます。
 
 ```bash
-pnpm tsx examples/audio-query.ts
+pnpm tsx --env-file=.env examples/audio-query.ts
 ```
 
 **学べること:**
@@ -52,7 +52,7 @@ GPUアクセラレーションを使用する例です。
 初期化オプションで簡単にGPUモードを有効化できます。
 
 ```bash
-pnpm tsx examples/gpu-mode.ts
+pnpm tsx --env-file=.env examples/gpu-mode.ts
 ```
 
 **学べること:**
@@ -67,7 +67,7 @@ pnpm tsx examples/gpu-mode.ts
 `using`宣言により、複数のモデルファイルを安全に管理できます。
 
 ```bash
-pnpm tsx examples/multiple-models.ts
+pnpm tsx --env-file=.env examples/multiple-models.ts
 ```
 
 **学べること:**
@@ -104,6 +104,7 @@ node-voicevox-core-dynamic/
 ```
 
 **必要なファイル:**
+
 - `libvoicevox_core.dylib` (Windows: `voicevox_core.dll`, Linux: `libvoicevox_core.so`)
 - `libonnxruntime.1.13.1.dylib` (ONNX Runtime)
 - OpenJTalk辞書ファイル群
