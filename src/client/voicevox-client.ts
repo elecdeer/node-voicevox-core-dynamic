@@ -146,25 +146,15 @@ export async function createVoicevoxClient(
       return createModelFileObject(handle, metas, id);
     },
 
-    async loadModel(modelFile: VoicevoxModelFile): Promise<void> {
-      ensureNotDisposed();
-      await loadVoiceModel(functions, synthesizer, modelFile.handle);
-    },
-
-    async loadModels(modelFiles: readonly VoicevoxModelFile[]): Promise<void> {
+    async loadVoiceModel(...modelFiles: VoicevoxModelFile[]): Promise<void> {
       ensureNotDisposed();
       for (const modelFile of modelFiles) {
         await loadVoiceModel(functions, synthesizer, modelFile.handle);
       }
     },
-
     // 音声合成
 
-    async tts(
-      text: string,
-      styleId: number,
-      options?: TtsOptions,
-    ): Promise<Uint8Array> {
+    async tts(text: string, styleId: number, options?: TtsOptions): Promise<Uint8Array> {
       ensureNotDisposed();
       return synthesizerTts(functions, synthesizer, text, styleId, options);
     },

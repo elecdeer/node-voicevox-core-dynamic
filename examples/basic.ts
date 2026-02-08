@@ -49,7 +49,7 @@ async function main() {
   using modelFile = await client.openModelFile(`${process.env.VOICEVOX_MODELS_PATH}/0.vvm`);
   console.log("🗂️  Voice Model Meta:", JSON.stringify(modelFile.metas, null, 2));
 
-  await client.loadModel(modelFile);
+  await client.loadVoiceModel(modelFile);
   console.log("✅ Voice model loaded\n");
 
   // 音声合成

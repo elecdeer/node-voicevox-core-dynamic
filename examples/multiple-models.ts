@@ -45,7 +45,7 @@ async function main() {
   console.log(`📋 Model 1 ID: ${Buffer.from(model1.id).toString("hex")}`);
   console.log(`📋 Model 1 Meta:`, model1.metas);
 
-  await client.loadModel(model1);
+  await client.loadVoiceModel(model1);
   console.log("✅ Model 1 loaded");
 
   // ロード済みモデルの確認
@@ -64,7 +64,7 @@ async function main() {
   // 複数モデルを同時にロードすることも可能
   console.log("\n📥 Loading model 2...");
   using model2 = await client.openModelFile(`${process.env.VOICEVOX_MODELS_PATH}/1.vvm`);
-  await client.loadModel(model2);
+  await client.loadVoiceModel(model2);
   console.log("✅ Model 2 loaded");
 
   // 両方のモデルがロードされていることを確認

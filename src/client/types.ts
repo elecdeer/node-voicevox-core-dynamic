@@ -112,16 +112,9 @@ export interface VoicevoxClient extends Disposable {
   /**
    * モデルをロードする
    *
-   * @param modelFile - ロードするモデルファイル
+   * @param modelFiles - ロードするモデルファイル
    */
-  loadModel(modelFile: VoicevoxModelFile): Promise<void>;
-
-  /**
-   * 複数のモデルをロードする
-   *
-   * @param modelFiles - ロードするモデルファイルの配列
-   */
-  loadModels(modelFiles: readonly VoicevoxModelFile[]): Promise<void>;
+  loadVoiceModel(...modelFiles: VoicevoxModelFile[]): Promise<void>;
 
   // 音声合成
 
@@ -133,11 +126,7 @@ export interface VoicevoxClient extends Disposable {
    * @param options - TTSオプション
    * @returns WAV形式の音声データ
    */
-  tts(
-    text: string,
-    styleId: number,
-    options?: TtsOptions,
-  ): Promise<Uint8Array>;
+  tts(text: string, styleId: number, options?: TtsOptions): Promise<Uint8Array>;
 
   /**
    * AudioQueryを作成する

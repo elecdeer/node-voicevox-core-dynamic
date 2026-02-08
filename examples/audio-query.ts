@@ -39,7 +39,7 @@ async function main() {
 
   // 音声モデルをロード
   using modelFile = await client.openModelFile(`${process.env.VOICEVOX_MODELS_PATH}/0.vvm`);
-  await client.loadModel(modelFile);
+  await client.loadVoiceModel(modelFile);
   console.log("✅ Initialized\n");
 
   // AudioQueryを生成
