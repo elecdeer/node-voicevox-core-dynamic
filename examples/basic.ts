@@ -1,95 +1,48 @@
 /**
  * 基本的な使用例
  *
- * 環境変数VOICEVOX_CORE_LIB_PATHを設定してから実行してください。
- * 例: VOICEVOX_CORE_LIB_PATH=./voicevox/voicevox_core/c_api/lib/libvoicevox_core.dylib pnpm tsx examples/basic.ts
+ * 高レベルAPIを使った基本的な音声合成の例です。
+ * `using`宣言により、リソース管理が自動化されます。
+ *
+ * 使用例:
+ * pnpm tsx examples/basic.ts
  */
 
-import {
-  loadOnnxruntime,
-  createOpenJtalk,
-  createSynthesizer,
-  getVoiceModelMetasJson,
-  openVoiceModelFile,
-  loadVoiceModel,
-  tts,
-  deleteSynthesizer,
-  deleteOpenJtalk,
-  closeVoiceModelFile,
-  getVersion,
-} from "../src/index.js";
-import { loadLibrary } from "../src/ffi/library.js";
+import { createVoicevoxClient } from "../src/index.js";
 import { writeFile } from "node:fs/promises";
 
 async function main() {
-  // ライブラリをロード
-  const functions = loadLibrary();
+  console.log("🎤 VOICEVOX CORE Node.js Binding Example\n");
 
-  console.log("🎤 VOICEVOX CORE Node.js Binding Example");
-  console.log(`📦 Version: ${getVersion(functions)}\n`);
-
-  // 環境変数チェック
-  if (!process.env.VOICEVOX_CORE_LIB_PATH) {
-    console.error("❌ VOICEVOX_CORE_LIB_PATH environment variable is not set");
-    console.error(
-      "Example: VOICEVOX_CORE_LIB_PATH=./voicevox/voicevox_core/c_api/lib/libvoicevox_core.dylib",
-    );
-    process.exit(1);
-  }
-
-  if (!process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH) {
-    console.error("❌ VOICEVOX_ONNXRUNTIME_LIB_PATH environment variable is not set");
-    process.exit(1);
-  }
-
-  console.log(`🛠️  Using VOICEVOX_CORE_LIB_PATH: ${process.env.VOICEVOX_CORE_LIB_PATH}`);
-  console.log(
-    `🛠️  Using VOICEVOX_ONNXRUNTIME_LIB_PATH: ${process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH}\n`,
-  );
-
-  // 初期化
-  console.log("⚙️  Initializing...");
-
-  // ONNX Runtimeをロード
-  const onnxruntime = await loadOnnxruntime(functions, {
-    filename: process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH,
+  // クライアントを作成（using宣言により自動的にリソース解放される）
+  using client = await createVoicevoxClient({
+    corePath: "./voicevox/voicevox_core/c_api/lib/libvoicevox_core.dylib",
+    onnxruntimePath:
+      "./voicevox/voicevox_core/onnxruntime/lib/libvoicevox_onnxruntime.1.17.3.dylib",
+    openJtalkDictDir: "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
   });
-  console.log("✅ ONNX Runtime loaded");
 
-  // OpenJTalkを初期化
-  const openJtalk = await createOpenJtalk(
-    functions,
-    "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
-  );
-  console.log("✅ OpenJTalk initialized");
-
-  // シンセサイザを作成
-  const synthesizer = await createSynthesizer(functions, onnxruntime, openJtalk);
-  console.log("✅ Synthesizer created");
+  console.log(`📦 Version: ${client.getVersion()}`);
+  console.log(`🎮 GPU Mode: ${client.isGpuMode ? "enabled" : "disabled"}\n`);
 
   // 音声モデルをロード
-  console.log("\n📥 Loading voice model...");
-  const model = await openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
+  console.log("📥 Loading voice model...");
+  using modelFile = await client.openModelFile("./voicevox/voicevox_core/models/vvms/0.vvm");
+  console.log("🗂️  Voice Model Meta:", JSON.stringify(modelFile.metas, null, 2));
 
-  await loadVoiceModel(functions, synthesizer, model);
-  console.log("✅ Voice model loaded");
-
-  const meta = getVoiceModelMetasJson(functions, model);
-  console.log("🗂️  Voice Model Meta:", JSON.stringify(meta, null, 2));
-
-  // モデルファイルは閉じてOK（内部でコピーされている）
-  closeVoiceModelFile(functions, model);
+  await client.loadModel(modelFile);
+  console.log("✅ Voice model loaded\n");
 
   // 音声合成
-  console.log("\n🎵 Synthesizing speech...");
+  console.log("🎵 Synthesizing speech...");
   const text = "こんにちは、VOICEVOXです。";
-  const styleId = 0; // スタイルID（モデルによって異なる）
+  const styleId = modelFile.metas[0].styles[0].id;
 
   console.log(`📝 Text: ${text}`);
   console.log(`🎨 Style ID: ${styleId}`);
 
   const timeStart = performance.now();
-  const wav = await tts(functions, synthesizer, text, styleId);
+  const wav = await client.tts(text, styleId);
   console.log(`✅ Generated ${wav.length} bytes of WAV data`);
 
   const timeEnd = performance.now();
@@ -100,11 +53,8 @@ async function main() {
   await writeFile(outputPath, wav);
   console.log(`💾 Saved to ${outputPath}`);
 
-  // クリーンアップ
-  console.log("\n🧹 Cleaning up...");
-  deleteSynthesizer(functions, synthesizer);
-  deleteOpenJtalk(functions, openJtalk);
-  console.log("✅ Done!");
+  console.log("\n✅ Done!");
+  // usingブロックを抜けると自動的にリソースが解放される
 }
 
 main().catch((error) => {

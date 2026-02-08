@@ -1,113 +1,66 @@
 /**
  * 複数の音声モデルを扱う例
  *
- * 複数のVVMファイルをロード・アンロードしながら音声合成を行います。
+ * 複数のVVMファイルをロードして音声合成を行います。
+ * 高レベルAPIを使用し、リソース管理は自動化されます。
  */
 
-import {
-  loadOnnxruntime,
-  createOpenJtalk,
-  createSynthesizer,
-  openVoiceModelFile,
-  loadVoiceModel,
-  unloadVoiceModel,
-  isLoadedVoiceModel,
-  getVoiceModelId,
-  getVoiceModelMetasJson,
-  getSynthesizerMetasJson,
-  tts,
-  deleteSynthesizer,
-  deleteOpenJtalk,
-  closeVoiceModelFile,
-} from "../src/index.js";
-import { loadLibrary } from "../src/ffi/library.js";
+import { createVoicevoxClient } from "../src/index.js";
 import { writeFile } from "node:fs/promises";
 
 async function main() {
   console.log("🎤 Multiple Models Example\n");
 
-  // ライブラリをロード
-  const functions = loadLibrary();
-
-  // 環境変数チェック
-  if (!process.env.VOICEVOX_CORE_LIB_PATH) {
-    console.error("❌ VOICEVOX_CORE_LIB_PATH environment variable is not set");
-    process.exit(1);
-  }
-
-  if (!process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH) {
-    console.error("❌ VOICEVOX_ONNXRUNTIME_LIB_PATH environment variable is not set");
-    process.exit(1);
-  }
-
-  console.log(`🛠️  Using VOICEVOX_CORE_LIB_PATH: ${process.env.VOICEVOX_CORE_LIB_PATH}`);
-  console.log(
-    `🛠️  Using VOICEVOX_ONNXRUNTIME_LIB_PATH: ${process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH}\n`,
-  );
-
-  // 初期化
-  console.log("⚙️  Initializing...");
-  const onnxruntime = await loadOnnxruntime(functions, {
-    filename: process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH,
+  // クライアントを作成
+   await using client = await createVoicevoxClient({
+    corePath: "./voicevox/voicevox_core/c_api/lib/libvoicevox_core.dylib",
+    onnxruntimePath: "./voicevox/voicevox_core/c_api/lib/libonnxruntime.1.13.1.dylib",
+    openJtalkDictDir: "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
   });
-  const openJtalk = await createOpenJtalk(
-    functions,
-    "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
-  );
-  const synthesizer = await createSynthesizer(functions, onnxruntime, openJtalk);
   console.log("✅ Initialized\n");
 
   // モデル1をロード
   console.log("📥 Loading model 1...");
-  const model1 = await openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
-  const model1Id = getVoiceModelId(functions, model1);
-  const model1Meta = getVoiceModelMetasJson(functions, model1);
-  console.log(`📋 Model 1 ID: ${Buffer.from(model1Id).toString("hex")}`);
-  console.log(`📋 Model 1 Meta:`, JSON.parse(model1Meta));
+   await using model1 = await client.openModelFile("./voicevox/voicevox_core/models/vvms/0.vvm");
+  console.log(`📋 Model 1 ID: ${Buffer.from(model1.id).toString("hex")}`);
+  console.log(`📋 Model 1 Meta:`, model1.metas);
 
-  await loadVoiceModel(functions, synthesizer, model1);
-  closeVoiceModelFile(functions, model1);
+  await client.loadModel(model1);
   console.log("✅ Model 1 loaded");
 
   // ロード済みモデルの確認
   console.log("\n📊 Checking loaded models...");
-  const isModel1Loaded = isLoadedVoiceModel(functions, synthesizer, model1Id);
-  console.log(`Model 1 is loaded: ${isModel1Loaded}`);
-
-  // シンセサイザのメタ情報を確認
-  const synthesizerMetas = getSynthesizerMetasJson(functions, synthesizer);
-  console.log("📋 Synthesizer metas:", JSON.parse(synthesizerMetas));
+  const loadedSpeakers = client.getLoadedSpeakers();
+  console.log("📋 Loaded speakers:", loadedSpeakers);
 
   // モデル1で音声合成
   console.log("\n🎵 Synthesizing with model 1...");
   const text1 = "これはモデル1の音声です。";
-  const wav1 = await tts(functions, synthesizer, text1, 0);
+  const styleId1 = model1.metas[0].styles[0].id;
+  const wav1 = await client.tts(text1, styleId1);
   await writeFile("output_model1.wav", wav1);
   console.log(`💾 Saved to output_model1.wav`);
 
-  // モデル1をアンロード
-  console.log("\n🗑️  Unloading model 1...");
-  unloadVoiceModel(functions, synthesizer, model1Id);
-  const isModel1LoadedAfter = isLoadedVoiceModel(functions, synthesizer, model1Id);
-  console.log(`Model 1 is loaded: ${isModel1LoadedAfter}`);
-  console.log("✅ Model 1 unloaded");
-
   // 複数モデルを同時にロードすることも可能
-  console.log("\n📥 Loading multiple models...");
-  const modelA = await openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/1.vvm");
-  await loadVoiceModel(functions, synthesizer, modelA);
-  closeVoiceModelFile(functions, modelA);
-  console.log("✅ Model A loaded");
+  console.log("\n📥 Loading model 2...");
+   await using model2 = await client.openModelFile("./voicevox/voicevox_core/models/vvms/1.vvm");
+  await client.loadModel(model2);
+  console.log("✅ Model 2 loaded");
 
-  // 注: 実際に複数のモデルを使用するには、異なるVVMファイルが必要です
-  // この例では同じファイルを使用していますが、実際のユースケースでは
-  // 異なるキャラクターやスタイルのモデルをロードします
+  // 両方のモデルがロードされていることを確認
+  const loadedSpeakers2 = client.getLoadedSpeakers();
+  console.log(`\n📊 Now ${loadedSpeakers2.length} speakers are loaded`);
 
-  // クリーンアップ
-  console.log("\n🧹 Cleaning up...");
-  deleteSynthesizer(functions, synthesizer);
-  deleteOpenJtalk(functions, openJtalk);
-  console.log("✅ Done!");
+  // モデル2で音声合成
+  console.log("\n🎵 Synthesizing with model 2...");
+  const text2 = "これはモデル2の音声です。";
+  const styleId2 = model2.metas[0].styles[0].id;
+  const wav2 = await client.tts(text2, styleId2);
+  await writeFile("output_model2.wav", wav2);
+  console.log(`💾 Saved to output_model2.wav`);
+
+  console.log("\n✅ Done!");
+  // usingブロックを抜けると、モデルファイルとクライアントが自動的に解放される
 }
 
 main().catch((error) => {

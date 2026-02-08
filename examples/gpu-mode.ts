@@ -3,73 +3,29 @@
  *
  * GPUモードを有効にして音声合成を行います。
  * GPUが利用できない環境では自動的にCPUモードにフォールバックします。
+ * 高レベルAPIを使用し、リソース管理は自動化されます。
  */
 
-import {
-  loadOnnxruntime,
-  createOpenJtalk,
-  createSynthesizer,
-  openVoiceModelFile,
-  loadVoiceModel,
-  tts,
-  isGpuMode,
-  getOnnxruntimeSupportedDevicesJson,
-  deleteSynthesizer,
-  deleteOpenJtalk,
-  closeVoiceModelFile,
-  VoicevoxAccelerationMode,
-} from "../src/index.js";
-import { loadLibrary } from "../src/ffi/library.js";
+import { createVoicevoxClient, VoicevoxAccelerationMode } from "../src/index.js";
 import { writeFile } from "node:fs/promises";
 
 async function main() {
   console.log("🎤 GPU Mode Example\n");
 
-  // ライブラリをロード
-  const functions = loadLibrary();
-
-  // 環境変数チェック
-  if (!process.env.VOICEVOX_CORE_LIB_PATH) {
-    console.error("❌ VOICEVOX_CORE_LIB_PATH environment variable is not set");
-    process.exit(1);
-  }
-
-  if (!process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH) {
-    console.error("❌ VOICEVOX_ONNXRUNTIME_LIB_PATH environment variable is not set");
-    process.exit(1);
-  }
-
-  console.log(`🛠️  Using VOICEVOX_CORE_LIB_PATH: ${process.env.VOICEVOX_CORE_LIB_PATH}`);
-  console.log(
-    `🛠️  Using VOICEVOX_ONNXRUNTIME_LIB_PATH: ${process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH}\n`,
-  );
-
-  // 初期化
-  console.log("⚙️  Initializing...");
-  const onnxruntime = await loadOnnxruntime(functions, {
-    filename: process.env.VOICEVOX_ONNXRUNTIME_LIB_PATH,
-  });
-
-  // サポートされているデバイス情報を確認
-  console.log("\n📊 Checking supported devices...");
-  const devicesJson = getOnnxruntimeSupportedDevicesJson(functions, onnxruntime);
-  const devices = JSON.parse(devicesJson);
-  console.log("Supported devices:", JSON.stringify(devices, null, 2));
-
-  const openJtalk = await createOpenJtalk(
-    functions,
-    "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
-  );
-
-  // GPUモードで初期化を試みる
-  console.log("\n🎮 Attempting to create synthesizer with GPU mode...");
-  const synthesizer = await createSynthesizer(functions, onnxruntime, openJtalk, {
-    accelerationMode: VoicevoxAccelerationMode.Gpu,
-    cpuNumThreads: 0, // auto
+  // GPUモードでクライアントを作成
+  console.log("🎮 Attempting to create client with GPU mode...");
+   await using client = await createVoicevoxClient({
+    corePath: "./voicevox/voicevox_core/c_api/lib/libvoicevox_core.dylib",
+    onnxruntimePath: "./voicevox/voicevox_core/c_api/lib/libonnxruntime.1.13.1.dylib",
+    openJtalkDictDir: "./voicevox/voicevox_core/dict/open_jtalk_dic_utf_8-1.11",
+    initializeOptions: {
+      accelerationMode: VoicevoxAccelerationMode.Gpu,
+      cpuNumThreads: 0, // auto
+    },
   });
 
   // GPUモードが有効かチェック
-  const gpuEnabled = isGpuMode(functions, synthesizer);
+  const gpuEnabled = client.isGpuMode;
   if (gpuEnabled) {
     console.log("✅ GPU mode is enabled");
   } else {
@@ -78,18 +34,19 @@ async function main() {
 
   // 音声モデルをロード
   console.log("\n📥 Loading voice model...");
-  const model = await openVoiceModelFile(functions, "./voicevox/voicevox_core/models/vvms/0.vvm");
-  await loadVoiceModel(functions, synthesizer, model);
-  closeVoiceModelFile(functions, model);
+   await using modelFile = await client.openModelFile(
+    "./voicevox/voicevox_core/models/vvms/0.vvm",
+  );
+  await client.loadModel(modelFile);
   console.log("✅ Voice model loaded");
 
   // 音声合成
   console.log("\n🎵 Synthesizing speech...");
   const text = "GPUモードで音声合成をしています。";
-  const styleId = 0;
+  const styleId = modelFile.metas[0].styles[0].id;
 
   const startTime = performance.now();
-  const wav = await tts(functions, synthesizer, text, styleId);
+  const wav = await client.tts(text, styleId);
   const endTime = performance.now();
 
   console.log(`✅ Generated ${wav.length} bytes of WAV data`);
@@ -100,9 +57,6 @@ async function main() {
   await writeFile(outputPath, wav);
   console.log(`💾 Saved to ${outputPath}`);
 
-  // クリーンアップ
-  deleteSynthesizer(functions, synthesizer);
-  deleteOpenJtalk(functions, openJtalk);
   console.log("\n✅ Done!");
 }
 

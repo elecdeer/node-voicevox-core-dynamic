@@ -61,3 +61,13 @@ export {
   synthesis,
   tts,
 } from "./api/index.js";
+
+// 高レベルAPI
+export { createVoicevoxClient } from "./client/index.js";
+export type {
+  VoicevoxClient,
+  VoicevoxClientOptions,
+  VoicevoxModelFile,
+  SpeakerMeta,
+  SpeakerStyle,
+} from "./client/index.js";
