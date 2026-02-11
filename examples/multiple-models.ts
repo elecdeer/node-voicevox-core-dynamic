@@ -41,11 +41,8 @@ async function main() {
 
   // モデル1をロード
   console.log("📥 Loading model 1...");
-  using model1 = await client.openModelFile(`${process.env.VOICEVOX_MODELS_PATH}/0.vvm`);
-  console.log(`📋 Model 1 ID: ${Buffer.from(model1.id).toString("hex")}`);
-  console.log(`📋 Model 1 Meta:`, model1.metas);
-
-  await client.loadVoiceModel(model1);
+  const modelPath1 = `${process.env.VOICEVOX_MODELS_PATH}/0.vvm`;
+  await client.loadVoiceModelFromPath(modelPath1);
   console.log("✅ Model 1 loaded");
 
   // ロード済みモデルの確認
@@ -56,15 +53,15 @@ async function main() {
   // モデル1で音声合成
   console.log("\n🎵 Synthesizing with model 1...");
   const text1 = "これはモデル1の音声です。";
-  const styleId1 = model1.metas[0].styles[0].id;
+  const styleId1 = loadedSpeakers[0].styles[0].id;
   const wav1 = await client.tts(text1, styleId1);
   await writeFile(`${process.env.OUTPUT_DIR}/output_model1.wav`, wav1);
   console.log(`💾 Saved to ${process.env.OUTPUT_DIR}/output_model1.wav`);
 
   // 複数モデルを同時にロードすることも可能
   console.log("\n📥 Loading model 2...");
-  using model2 = await client.openModelFile(`${process.env.VOICEVOX_MODELS_PATH}/1.vvm`);
-  await client.loadVoiceModel(model2);
+  const modelPath2 = `${process.env.VOICEVOX_MODELS_PATH}/1.vvm`;
+  await client.loadVoiceModelFromPath(modelPath2);
   console.log("✅ Model 2 loaded");
 
   // 両方のモデルがロードされていることを確認
@@ -74,7 +71,7 @@ async function main() {
   // モデル2で音声合成
   console.log("\n🎵 Synthesizing with model 2...");
   const text2 = "これはモデル2の音声です。";
-  const styleId2 = model2.metas[0].styles[0].id;
+  const styleId2 = loadedSpeakers2[1].styles[0].id;
   const wav2 = await client.tts(text2, styleId2);
   await writeFile(`${process.env.OUTPUT_DIR}/output_model2.wav`, wav2);
   console.log(`💾 Saved to ${process.env.OUTPUT_DIR}/output_model2.wav`);

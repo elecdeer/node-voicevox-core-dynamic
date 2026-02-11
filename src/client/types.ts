@@ -9,7 +9,6 @@ import type {
   SynthesizerHandle,
   SynthesisOptions,
   TtsOptions,
-  VoiceModelFileHandle,
 } from "../types/index.js";
 import type { AudioQuery } from "../types/models.js";
 import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
@@ -31,6 +30,21 @@ export interface SpeakerMeta {
   readonly speaker_uuid: string;
   readonly styles: readonly SpeakerStyle[];
   readonly version?: string;
+}
+
+/**
+ * モデルファイル情報を含むスピーカーメタ情報
+ */
+export interface SpeakerMetaWithModelInfo extends SpeakerMeta {
+  /**
+   * モデルファイルのパス
+   */
+  readonly modelFilePath: string;
+
+  /**
+   * モデルファイルのID (16バイトのUUID)
+   */
+  readonly modelId: Uint8Array;
 }
 
 /**
@@ -64,34 +78,6 @@ export interface VoicevoxClientOptions {
   initializeOptions?: InitializeOptions;
 }
 
-/**
- * 開いたモデルファイル
- *
- * `using` 宣言で使用可能
- */
-export interface VoicevoxModelFile extends Disposable {
-  /**
-   * モデルに含まれるスピーカーのメタ情報
-   */
-  readonly metas: readonly SpeakerMeta[];
-
-  /**
-   * モデルファイルのID (16バイトのUUID)
-   */
-  readonly id: Uint8Array;
-
-  /**
-   * 低レベルAPI連携用のハンドル
-   */
-  readonly handle: VoiceModelFileHandle;
-
-  /**
-   * モデルファイルを閉じる
-   *
-   * 冪等性が保証されており、複数回呼び出しても安全
-   */
-  close(): void;
-}
 
 /**
  * クライアントオブジェクト
@@ -102,19 +88,25 @@ export interface VoicevoxClient extends Disposable {
   // モデル操作
 
   /**
-   * モデルファイルを開く
+   * ディレクトリ内のモデルファイルのメタ情報を取得する
    *
-   * @param path - モデルファイル (.vvm) のパス
-   * @returns 開いたモデルファイル
+   * ディレクトリ直下の `.vvm` ファイルを読み込み、各スピーカーのメタ情報を取得します。
+   * 各スピーカーにモデルファイルのパスとIDが含まれます。
+   *
+   * @param dir - モデルファイルが格納されているディレクトリ
+   * @returns スピーカーメタ情報の配列（スピーカーごとにフラット化）
    */
-  openModelFile(path: string): Promise<VoicevoxModelFile>;
+  peekModelFilesMeta(dir: string): Promise<readonly SpeakerMetaWithModelInfo[]>;
 
   /**
-   * モデルをロードする
+   * パスからモデルをロードする
    *
-   * @param modelFiles - ロードするモデルファイル
+   * 指定されたパスのモデルファイルをシンセサイザにロードします。
+   * 内部でファイルを開き、ロード後に自動的に閉じます。
+   *
+   * @param paths - ロードするモデルファイルのパス
    */
-  loadVoiceModel(...modelFiles: VoicevoxModelFile[]): Promise<void>;
+  loadVoiceModelFromPath(...paths: string[]): Promise<void>;
 
   // 音声合成
 

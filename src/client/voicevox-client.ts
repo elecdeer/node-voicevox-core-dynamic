@@ -25,15 +25,16 @@ import {
 import type {
   VoicevoxClient,
   VoicevoxClientOptions,
-  VoicevoxModelFile,
   SpeakerMeta,
+  SpeakerMetaWithModelInfo,
 } from "./types.js";
 import type {
   AudioQuery,
   SynthesisOptions,
   TtsOptions,
-  VoiceModelFileHandle,
 } from "../types/index.js";
+import { readdir } from "node:fs/promises";
+import { join } from "node:path";
 
 /**
  * Voicevoxクライアントを作成する
@@ -49,10 +50,14 @@ import type {
  *   openJtalkDictDir: "./voicevox/dict/open_jtalk_dic_utf_8-1.11",
  * });
  *
- * await using modelFile = await client.openModelFile("./models/0.vvm");
- * await client.loadModel(modelFile);
+ * // モデルをロード
+ * await client.loadVoiceModelFromPath("./models/0.vvm");
  *
- * const styleId = modelFile.metas[0].styles[0].id;
+ * // ロード済みのスピーカー情報を取得
+ * const speakers = client.getLoadedSpeakers();
+ * const styleId = speakers[0].styles[0].id;
+ *
+ * // 音声合成
  * const wav = await client.tts("こんにちは", styleId);
  * ```
  */
@@ -99,57 +104,52 @@ export async function createVoicevoxClient(
   }
 
   /**
-   * モデルファイルオブジェクトを作成
-   */
-  function createModelFileObject(
-    handle: VoiceModelFileHandle,
-    metas: readonly SpeakerMeta[],
-    id: Uint8Array,
-  ): VoicevoxModelFile {
-    let modelDisposed = false;
-
-    const modelFile: VoicevoxModelFile = {
-      metas,
-      id,
-      handle,
-
-      close() {
-        if (modelDisposed) {
-          return;
-        }
-        modelDisposed = true;
-        closeVoiceModelFile(functions, handle);
-      },
-
-      [Symbol.dispose]() {
-        this.close();
-      },
-    };
-
-    return modelFile;
-  }
-
-  /**
    * クライアントオブジェクト
    */
   const client: VoicevoxClient = {
     // モデル操作
 
-    async openModelFile(path: string): Promise<VoicevoxModelFile> {
+    async peekModelFilesMeta(dir: string): Promise<readonly SpeakerMetaWithModelInfo[]> {
       ensureNotDisposed();
 
-      const handle = await openVoiceModelFile(functions, path);
-      const metasJson = getVoiceModelMetasJson(functions, handle);
-      const metas = JSON.parse(metasJson) as SpeakerMeta[];
-      const id = getVoiceModelId(functions, handle);
+      const files = await readdir(dir);
+      const vvmFiles = files.filter((f) => f.endsWith(".vvm"));
 
-      return createModelFileObject(handle, metas, id);
+      const results: SpeakerMetaWithModelInfo[] = [];
+      for (const file of vvmFiles) {
+        const modelFilePath = join(dir, file);
+        const handle = await openVoiceModelFile(functions, modelFilePath);
+        try {
+          const metasJson = getVoiceModelMetasJson(functions, handle);
+          const metas = JSON.parse(metasJson) as SpeakerMeta[];
+          const modelId = getVoiceModelId(functions, handle);
+
+          // スピーカーごとにフラット化
+          for (const meta of metas) {
+            results.push({
+              ...meta,
+              modelFilePath,
+              modelId,
+            });
+          }
+        } finally {
+          closeVoiceModelFile(functions, handle);
+        }
+      }
+
+      return results;
     },
 
-    async loadVoiceModel(...modelFiles: VoicevoxModelFile[]): Promise<void> {
+    async loadVoiceModelFromPath(...paths: string[]): Promise<void> {
       ensureNotDisposed();
-      for (const modelFile of modelFiles) {
-        await loadVoiceModel(functions, synthesizer, modelFile.handle);
+
+      for (const path of paths) {
+        const handle = await openVoiceModelFile(functions, path);
+        try {
+          await loadVoiceModel(functions, synthesizer, handle);
+        } finally {
+          closeVoiceModelFile(functions, handle);
+        }
       }
     },
     // 音声合成

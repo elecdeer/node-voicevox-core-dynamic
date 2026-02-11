@@ -46,16 +46,16 @@ async function main() {
 
   // 音声モデルをロード
   console.log("📥 Loading voice model...");
-  using modelFile = await client.openModelFile(`${process.env.VOICEVOX_MODELS_PATH}/0.vvm`);
-  console.log("🗂️  Voice Model Meta:", JSON.stringify(modelFile.metas, null, 2));
+  await client.loadVoiceModelFromPath(`${process.env.VOICEVOX_MODELS_PATH}/0.vvm`);
 
-  await client.loadVoiceModel(modelFile);
+  const loadedSpeakers = client.getLoadedSpeakers();
+  console.log("🗂️  Voice Model Meta:", JSON.stringify(loadedSpeakers, null, 2));
   console.log("✅ Voice model loaded\n");
 
   // 音声合成
   console.log("🎵 Synthesizing speech...");
   const text = "こんにちは、VOICEVOXです。";
-  const styleId = modelFile.metas[0].styles[0].id;
+  const styleId = loadedSpeakers[0].styles[0].id;
 
   console.log(`📝 Text: ${text}`);
   console.log(`🎨 Style ID: ${styleId}`);

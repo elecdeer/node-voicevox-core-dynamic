@@ -6,7 +6,7 @@ export { createVoicevoxClient } from "./voicevox-client.js";
 export type {
   VoicevoxClient,
   VoicevoxClientOptions,
-  VoicevoxModelFile,
   SpeakerMeta,
+  SpeakerMetaWithModelInfo,
   SpeakerStyle,
 } from "./types.js";

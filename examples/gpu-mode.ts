@@ -53,14 +53,14 @@ async function main() {
 
   // 音声モデルをロード
   console.log("\n📥 Loading voice model...");
-  using modelFile = await client.openModelFile(`${process.env.VOICEVOX_MODELS_PATH}/0.vvm`);
-  await client.loadVoiceModel(modelFile);
+  await client.loadVoiceModelFromPath(`${process.env.VOICEVOX_MODELS_PATH}/0.vvm`);
   console.log("✅ Voice model loaded");
 
   // 音声合成
   console.log("\n🎵 Synthesizing speech...");
   const text = "GPUモードで音声合成をしています。";
-  const styleId = modelFile.metas[0].styles[0].id;
+  const loadedSpeakers = client.getLoadedSpeakers();
+  const styleId = loadedSpeakers[0].styles[0].id;
 
   const startTime = performance.now();
   const wav = await client.tts(text, styleId);

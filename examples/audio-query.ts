@@ -38,14 +38,14 @@ async function main() {
   });
 
   // 音声モデルをロード
-  using modelFile = await client.openModelFile(`${process.env.VOICEVOX_MODELS_PATH}/0.vvm`);
-  await client.loadVoiceModel(modelFile);
+  await client.loadVoiceModelFromPath(`${process.env.VOICEVOX_MODELS_PATH}/0.vvm`);
   console.log("✅ Initialized\n");
 
   // AudioQueryを生成
   console.log("📝 Creating AudioQuery...");
   const text = "今日はいい天気ですね。";
-  const styleId = modelFile.metas[0].styles[0].id;
+  const loadedSpeakers = client.getLoadedSpeakers();
+  const styleId = loadedSpeakers[0].styles[0].id;
 
   const audioQuery = await client.createAudioQuery(text, styleId);
   console.log("✅ AudioQuery created");
