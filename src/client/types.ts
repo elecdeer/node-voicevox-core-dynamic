@@ -121,6 +121,16 @@ export interface VoicevoxClient extends Disposable {
   tts(text: string, styleId: number, options?: TtsOptions): Promise<Uint8Array>;
 
   /**
+   * カナ（AquesTalk風記法）から音声を生成する
+   *
+   * @param kana - AquesTalk風記法のカナ
+   * @param styleId - スタイルID
+   * @param options - TTSオプション
+   * @returns WAV形式の音声データ
+   */
+  ttsFromKana(kana: string, styleId: number, options?: TtsOptions): Promise<Uint8Array>;
+
+  /**
    * AudioQueryを作成する
    *
    * @param text - 音声化するテキスト
@@ -128,6 +138,43 @@ export interface VoicevoxClient extends Disposable {
    * @returns AudioQuery
    */
   createAudioQuery(text: string, styleId: number): Promise<AudioQuery>;
+
+  /**
+   * カナ（AquesTalk風記法）からAudioQueryを作成する
+   *
+   * @param kana - AquesTalk風記法のカナ
+   * @param styleId - スタイルID
+   * @returns AudioQuery
+   */
+  createAudioQueryFromKana(kana: string, styleId: number): Promise<AudioQuery>;
+
+  /**
+   * テキストからアクセント句を生成する
+   *
+   * @param text - 音声化するテキスト
+   * @param styleId - スタイルID
+   * @returns アクセント句の配列
+   */
+  createAccentPhrases(text: string, styleId: number): Promise<AudioQuery["accentPhrases"]>;
+
+  /**
+   * カナ（AquesTalk風記法）からアクセント句を生成する
+   *
+   * @param kana - AquesTalk風記法のカナ
+   * @param styleId - スタイルID
+   * @returns アクセント句の配列
+   */
+  createAccentPhrasesFromKana(kana: string, styleId: number): Promise<AudioQuery["accentPhrases"]>;
+
+  /**
+   * アクセント句からAudioQueryを生成する
+   *
+   * @param accentPhrases - アクセント句の配列
+   * @returns AudioQuery
+   */
+  createAudioQueryFromAccentPhrases(
+    accentPhrases: AudioQuery["accentPhrases"],
+  ): Promise<AudioQuery>;
 
   /**
    * AudioQueryから音声を合成する

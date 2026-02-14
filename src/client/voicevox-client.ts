@@ -13,8 +13,13 @@ import {
   isGpuMode as synthesizerIsGpuMode,
   getSynthesizerMetasJson,
   createAudioQuery as synthesizerCreateAudioQuery,
+  createAudioQueryFromKana as synthesizerCreateAudioQueryFromKana,
+  createAccentPhrases as synthesizerCreateAccentPhrases,
+  createAccentPhrasesFromKana as synthesizerCreateAccentPhrasesFromKana,
+  createAudioQueryFromAccentPhrases as synthesizerCreateAudioQueryFromAccentPhrases,
   synthesis as synthesizerSynthesis,
   tts as synthesizerTts,
+  ttsFromKana as synthesizerTtsFromKana,
 } from "../api/synthesizer.js";
 import {
   openVoiceModelFile,
@@ -159,9 +164,39 @@ export async function createVoicevoxClient(
       return synthesizerTts(functions, synthesizer, text, styleId, options);
     },
 
+    async ttsFromKana(kana: string, styleId: number, options?: TtsOptions): Promise<Uint8Array> {
+      ensureNotDisposed();
+      return synthesizerTtsFromKana(functions, synthesizer, kana, styleId, options);
+    },
+
     async createAudioQuery(text: string, styleId: number): Promise<AudioQuery> {
       ensureNotDisposed();
       return synthesizerCreateAudioQuery(functions, synthesizer, text, styleId);
+    },
+
+    async createAudioQueryFromKana(kana: string, styleId: number): Promise<AudioQuery> {
+      ensureNotDisposed();
+      return synthesizerCreateAudioQueryFromKana(functions, synthesizer, kana, styleId);
+    },
+
+    async createAccentPhrases(text: string, styleId: number): Promise<AudioQuery["accentPhrases"]> {
+      ensureNotDisposed();
+      return synthesizerCreateAccentPhrases(functions, synthesizer, text, styleId);
+    },
+
+    async createAccentPhrasesFromKana(
+      kana: string,
+      styleId: number,
+    ): Promise<AudioQuery["accentPhrases"]> {
+      ensureNotDisposed();
+      return synthesizerCreateAccentPhrasesFromKana(functions, synthesizer, kana, styleId);
+    },
+
+    async createAudioQueryFromAccentPhrases(
+      accentPhrases: AudioQuery["accentPhrases"],
+    ): Promise<AudioQuery> {
+      ensureNotDisposed();
+      return synthesizerCreateAudioQueryFromAccentPhrases(functions, accentPhrases);
     },
 
     async synthesize(

@@ -58,8 +58,13 @@ export {
   isLoadedVoiceModel,
   getSynthesizerMetasJson,
   createAudioQuery,
+  createAudioQueryFromKana,
+  createAccentPhrases,
+  createAccentPhrasesFromKana,
+  createAudioQueryFromAccentPhrases,
   synthesis,
   tts,
+  ttsFromKana,
 } from "./api/index.js";
 
 // 高レベルAPI
