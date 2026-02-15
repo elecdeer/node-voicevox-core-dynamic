@@ -24,7 +24,7 @@ export const CharacterMetaSchema = v.object({
 export const CharacterMetaWithModelInfoSchema = v.object({
   ...CharacterMetaSchema.entries,
   modelFilePath: v.string(),
-  modelId: v.instance(Uint8Array),
+  modelId: v.pipe(v.string(), v.uuid()),
 });
 
 export const MoraSchema = v.object({

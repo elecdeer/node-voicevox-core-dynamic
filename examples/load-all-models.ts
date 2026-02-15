@@ -104,7 +104,7 @@ async function main() {
   for (const meta of speakerMetas) {
     console.log(`\n📋 Speaker: ${meta.name}`);
     console.log(`   📁 Model File: ${meta.modelFilePath}`);
-    console.log(`   📋 Model ID: ${Buffer.from(meta.modelId).toString("hex")}`);
+    console.log(`   📋 Model ID: ${meta.modelId}`);
     console.log(`   🎨 Styles: ${meta.styles.length}個`);
   }
 

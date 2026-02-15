@@ -8,6 +8,7 @@ import { VoicevoxResultCode } from "../types/enums.js";
 import type { VoiceModelFileHandle } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
 import { freeJson } from "../utils/memory.js";
+import { uuidBytesToString } from "../utils/uuid.js";
 import koffi from "koffi";
 
 /**
@@ -47,16 +48,16 @@ export async function openVoiceModelFile(
  *
  * @param functions - VOICEVOX CORE FFI関数
  * @param model - 音声モデルファイルハンドル
- * @returns 音声モデルID（16バイトのUUID）
+ * @returns 音声モデルID（UUID文字列）
  */
 export function getVoiceModelId(
   functions: VoicevoxCoreFunctions,
   model: VoiceModelFileHandle,
-): Uint8Array {
+): string {
   const modelId = new Uint8Array(16);
   functions.voicevox_voice_model_file_id(model, modelId);
 
-  return modelId;
+  return uuidBytesToString(modelId);
 }
 
 /**

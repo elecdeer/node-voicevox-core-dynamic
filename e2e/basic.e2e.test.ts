@@ -46,8 +46,6 @@ describe("Basic E2E Tests", () => {
     it("モデルファイルのメタ情報を取得できること", async () => {
       const metas = await client.peekModelFilesMeta(paths.modelsPath);
 
-      console.log(`取得したメタ情報: ${JSON.stringify(metas, null, 2)}`);
-
       const validationResult = v.safeParse(v.array(CharacterMetaWithModelInfoSchema), metas);
       expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
@@ -87,8 +85,6 @@ describe("Basic E2E Tests", () => {
   describe("スピーカー情報", () => {
     it("ロード済みスピーカー情報を取得できること", () => {
       const speakers = client.getLoadedSpeakers();
-
-      console.log(`ロード済みスピーカー情報: ${JSON.stringify(speakers, null, 2)}`);
 
       const validationResult = v.safeParse(v.array(CharacterMetaSchema), speakers);
       expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();

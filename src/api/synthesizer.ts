@@ -19,6 +19,7 @@ import type {
 } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
 import { freeJson, freeWav } from "../utils/memory.js";
+import { uuidStringToBytes } from "../utils/uuid.js";
 import koffi from "koffi";
 
 /**
@@ -110,15 +111,16 @@ export async function loadVoiceModel(
  *
  * @param functions - VOICEVOX CORE FFI関数
  * @param synthesizer - シンセサイザハンドル
- * @param modelId - 音声モデルID（16バイトのUUID）
+ * @param modelId - 音声モデルID（UUID文字列）
  * @throws {VoicevoxError} アンロードに失敗した場合
  */
 export function unloadVoiceModel(
   functions: VoicevoxCoreFunctions,
   synthesizer: SynthesizerHandle,
-  modelId: Uint8Array,
+  modelId: string,
 ): void {
-  const resultCode = functions.voicevox_synthesizer_unload_voice_model(synthesizer, modelId);
+  const modelIdBytes = uuidStringToBytes(modelId);
+  const resultCode = functions.voicevox_synthesizer_unload_voice_model(synthesizer, modelIdBytes);
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
@@ -145,15 +147,16 @@ export function isGpuMode(
  *
  * @param functions - VOICEVOX CORE FFI関数
  * @param synthesizer - シンセサイザハンドル
- * @param modelId - 音声モデルID（16バイトのUUID）
+ * @param modelId - 音声モデルID（UUID文字列）
  * @returns ロードされている場合true
  */
 export function isLoadedVoiceModel(
   functions: VoicevoxCoreFunctions,
   synthesizer: SynthesizerHandle,
-  modelId: Uint8Array,
+  modelId: string,
 ): boolean {
-  return functions.voicevox_synthesizer_is_loaded_voice_model(synthesizer, modelId);
+  const modelIdBytes = uuidStringToBytes(modelId);
+  return functions.voicevox_synthesizer_is_loaded_voice_model(synthesizer, modelIdBytes);
 }
 
 /**

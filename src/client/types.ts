@@ -55,9 +55,9 @@ export interface CharacterMetaWithModelInfo extends CharacterMeta {
   readonly modelFilePath: string;
 
   /**
-   * モデルファイルのID (16バイトのUUID)
+   * モデルファイルのID (UUID文字列)
    */
-  readonly modelId: Uint8Array;
+  readonly modelId: string;
 }
 
 /**
