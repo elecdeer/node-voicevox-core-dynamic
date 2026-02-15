@@ -30,7 +30,10 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "vitest run --config vitest.config.e2e.ts",
+    "test:e2e:watch": "vitest --config vitest.config.e2e.ts",
+    "test:e2e:docker": "docker compose -f docker-compose.e2e.yml up --build --exit-code-from e2e-test"
   },
   "dependencies": {
     "koffi": "^2.9.1"
@@ -38,12 +41,13 @@
   "devDependencies": {
     "@types/node": "^22.10.6",
     "@typescript/native-preview": "^7.0.0-dev.20260204.1",
+    "@vitest/ui": "^4.0.18",
     "oxfmt": "^0.28.0",
     "oxlint": "^1.43.0",
     "oxlint-tsgolint": "^0.11.4",
     "tsdown": "^0.20.1",
     "typescript": "^5.7.3",
-    "vitest": "^3.1.2"
+    "vitest": "^4.0.18"
   },
   "devEngines": {
     "runtime": {

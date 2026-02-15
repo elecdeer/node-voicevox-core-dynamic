@@ -1,0 +1,15 @@
+services:
+  e2e-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e
+    volumes:
+      # 出力ディレクトリをマウント（テスト結果のWAVファイル確認用）
+      - ./output:/app/output
+    environment:
+      - NODE_ENV=test
+      - VOICEVOX_CORE_C_API_PATH=/opt/voicevox/lib/libvoicevox_core.so
+      - VOICEVOX_ONNXRUNTIME_PATH=/opt/voicevox/lib/libvoicevox_onnxruntime.so
+      - VOICEVOX_OPEN_JTALK_DICT_DIR=/opt/voicevox/dict
+      - VOICEVOX_MODELS_PATH=/opt/voicevox/models
+      - OUTPUT_DIR=/app/output

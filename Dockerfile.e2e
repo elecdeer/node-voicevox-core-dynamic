@@ -1,0 +1,40 @@
+# ステージ1: voicevox_engineからライブラリを取得
+FROM --platform=linux/arm64 voicevox/voicevox_engine:cpu-latest AS voicevox
+
+# ステージ2: Node.js環境でテスト実行
+FROM --platform=linux/arm64 node:24
+
+WORKDIR /app
+
+# voicevoxライブラリをコピー
+COPY --from=voicevox /opt/voicevox_engine/libvoicevox_core.so /opt/voicevox/lib/
+COPY --from=voicevox /opt/voicevox_engine/libvoicevox_onnxruntime.so /opt/voicevox/lib/
+COPY --from=voicevox /opt/voicevox_engine/engine_internal/pyopenjtalk/open_jtalk_dic_utf_8-1.11 /opt/voicevox/dict/
+COPY --from=voicevox /opt/voicevox_engine/model /opt/voicevox/models/
+
+# 環境変数設定
+ENV VOICEVOX_CORE_C_API_PATH=/opt/voicevox/lib/libvoicevox_core.so
+ENV VOICEVOX_ONNXRUNTIME_PATH=/opt/voicevox/lib/libvoicevox_onnxruntime.so
+ENV VOICEVOX_OPEN_JTALK_DICT_DIR=/opt/voicevox/dict
+ENV VOICEVOX_MODELS_PATH=/opt/voicevox/models
+ENV OUTPUT_DIR=/app/output
+
+# pnpmセットアップ
+RUN corepack enable
+RUN which node && node -v
+RUN which pnpm && pnpm -v
+
+# パッケージ関連ファイルをコピー
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# 依存関係をインストール
+RUN pnpm install --frozen-lockfile
+
+# ソースコードをコピー
+COPY . .
+
+# ビルド実行
+RUN pnpm run build
+
+# テスト実行（TypeScriptを直接実行）
+CMD ["pnpm", "run", "test:e2e"]
