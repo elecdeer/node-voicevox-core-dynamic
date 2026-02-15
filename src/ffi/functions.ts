@@ -46,6 +46,21 @@ export function promisifyKoffiAsync<TFunc extends (...args: any[]) => any>(
   });
 }
 
+/**
+ * 関数のロードを試み、失敗した場合はundefinedを返す
+ *
+ * @param lib - Koffiライブラリ
+ * @param signature - 関数シグネチャ
+ * @returns ロードした関数、または失敗時はundefined
+ */
+function tryLoadFunc(lib: IKoffiLib, signature: string): any {
+  try {
+    return lib.func(signature);
+  } catch {
+    return undefined;
+  }
+}
+
 // ========================================
 // 不透明型（Opaque Types）
 // ========================================
@@ -418,13 +433,17 @@ export function declareFunctions(lib: IKoffiLib): VoicevoxCoreFunctions {
     ),
 
     // バリデーション
-    voicevox_audio_query_validate: lib.func(
+    // Note: これらの関数は新しいバージョンのvoicevox_coreで追加されたため、
+    // 古いバージョンでは利用できません。存在しない場合はエラーを無視します。
+    voicevox_audio_query_validate: tryLoadFunc(
+      lib,
       "int32 voicevox_audio_query_validate(const char* audio_query_json)",
     ),
-    voicevox_accent_phrase_validate: lib.func(
+    voicevox_accent_phrase_validate: tryLoadFunc(
+      lib,
       "int32 voicevox_accent_phrase_validate(const char* accent_phrase_json)",
     ),
-    voicevox_mora_validate: lib.func("int32 voicevox_mora_validate(const char* mora_json)"),
+    voicevox_mora_validate: tryLoadFunc(lib, "int32 voicevox_mora_validate(const char* mora_json)"),
 
     // ユーティリティ
     voicevox_get_version: lib.func("const char* voicevox_get_version(void)"),
