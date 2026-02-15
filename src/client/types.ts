@@ -14,28 +14,41 @@ import type { AudioQuery } from "../types/models.js";
 import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
 
 /**
- * スピーカーのスタイル情報
+ * スタイルのメタ情報
+ *
+ * @see https://voicevox.github.io/voicevox_core/apis/rust_api/voicevox_core/struct.StyleMeta.html
  */
-export interface SpeakerStyle {
-  readonly name: string;
-  readonly id: number;
-  readonly type?: string;
+export interface StyleMeta {
+  id: number;
+  name: string;
+  /** スタイルの種類
+   *
+   * talk: 音声合成クエリの作成と音声合成が可能
+   * singing_teacher: 歌唱音声合成用のクエリの作成が可能
+   * frame_decode: 歌唱音声合成が可能
+   * sing: 歌唱音声合成用のクエリの作成と歌唱音声合成が可能
+   */
+  type: "talk" | "singing_teacher" | "frame_decode" | "sing";
+  order: number;
 }
 
 /**
- * スピーカーのメタ情報
+ * キャラクターのメタ情報
+ *
+ * @see https://voicevox.github.io/voicevox_core/apis/rust_api/voicevox_core/struct.CharacterMeta.html
  */
-export interface SpeakerMeta {
-  readonly name: string;
-  readonly speaker_uuid: string;
-  readonly styles: readonly SpeakerStyle[];
-  readonly version?: string;
+export interface CharacterMeta {
+  name: string;
+  styles: StyleMeta[];
+  version: string;
+  speaker_uuid: string;
+  order: number;
 }
 
 /**
  * モデルファイル情報を含むスピーカーメタ情報
  */
-export interface SpeakerMetaWithModelInfo extends SpeakerMeta {
+export interface CharacterMetaWithModelInfo extends CharacterMeta {
   /**
    * モデルファイルのパス
    */
@@ -78,7 +91,6 @@ export interface VoicevoxClientOptions {
   initializeOptions?: InitializeOptions;
 }
 
-
 /**
  * クライアントオブジェクト
  *
@@ -96,7 +108,7 @@ export interface VoicevoxClient extends Disposable {
    * @param dir - モデルファイルが格納されているディレクトリ
    * @returns スピーカーメタ情報の配列（スピーカーごとにフラット化）
    */
-  peekModelFilesMeta(dir: string): Promise<readonly SpeakerMetaWithModelInfo[]>;
+  peekModelFilesMeta(dir: string): Promise<readonly CharacterMetaWithModelInfo[]>;
 
   /**
    * パスからモデルをロードする
@@ -197,7 +209,7 @@ export interface VoicevoxClient extends Disposable {
    *
    * @returns スピーカーメタ情報の配列
    */
-  getLoadedSpeakers(): readonly SpeakerMeta[];
+  getLoadedSpeakers(): readonly CharacterMeta[];
 
   /**
    * VOICEVOXのバージョンを取得する

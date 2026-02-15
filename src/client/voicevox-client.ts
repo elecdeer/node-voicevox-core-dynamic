@@ -30,8 +30,8 @@ import {
 import type {
   VoicevoxClient,
   VoicevoxClientOptions,
-  SpeakerMeta,
-  SpeakerMetaWithModelInfo,
+  CharacterMeta,
+  CharacterMetaWithModelInfo,
 } from "./types.js";
 import type { AudioQuery, SynthesisOptions, TtsOptions } from "../types/index.js";
 import { readdir } from "node:fs/promises";
@@ -110,19 +110,19 @@ export async function createVoicevoxClient(
   const client: VoicevoxClient = {
     // モデル操作
 
-    async peekModelFilesMeta(dir: string): Promise<readonly SpeakerMetaWithModelInfo[]> {
+    async peekModelFilesMeta(dir: string): Promise<readonly CharacterMetaWithModelInfo[]> {
       ensureNotDisposed();
 
       const files = await readdir(dir);
       const vvmFiles = files.filter((f) => f.endsWith(".vvm"));
 
-      const results: SpeakerMetaWithModelInfo[] = [];
+      const results: CharacterMetaWithModelInfo[] = [];
       for (const file of vvmFiles) {
         const modelFilePath = join(dir, file);
         const handle = await openVoiceModelFile(functions, modelFilePath);
         try {
           const metasJson = getVoiceModelMetasJson(functions, handle);
-          const metas = JSON.parse(metasJson) as SpeakerMeta[];
+          const metas = JSON.parse(metasJson) as CharacterMeta[];
           const modelId = getVoiceModelId(functions, handle);
 
           // スピーカーごとにフラット化
@@ -209,10 +209,10 @@ export async function createVoicevoxClient(
 
     // 情報取得
 
-    getLoadedSpeakers(): readonly SpeakerMeta[] {
+    getLoadedSpeakers(): readonly CharacterMeta[] {
       ensureNotDisposed();
       const metasJson = getSynthesizerMetasJson(functions, synthesizer);
-      return JSON.parse(metasJson) as SpeakerMeta[];
+      return JSON.parse(metasJson) as CharacterMeta[];
     },
 
     getVersion(): string {

@@ -47,6 +47,7 @@
     "oxlint-tsgolint": "^0.11.4",
     "tsdown": "^0.20.1",
     "typescript": "^5.7.3",
+    "valibot": "^1.2.0",
     "vitest": "^4.0.18"
   },
   "devEngines": {

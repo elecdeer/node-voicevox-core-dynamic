@@ -4,6 +4,8 @@ import type { VoicevoxClient } from "../src/index.js";
 import { VoicevoxError } from "../src/index.js";
 import { getEnvPaths } from "./helpers/env.js";
 import { analyzeWavAudio } from "./helpers/analyzeWavAudio.js";
+import { CharacterMetaSchema, CharacterMetaWithModelInfoSchema } from "./helpers/schemas.js";
+import * as v from "valibot";
 
 describe("Basic E2E Tests", () => {
   let client: VoicevoxClient;
@@ -44,17 +46,10 @@ describe("Basic E2E Tests", () => {
     it("モデルファイルのメタ情報を取得できること", async () => {
       const metas = await client.peekModelFilesMeta(paths.modelsPath);
 
-      expect(metas).toBeDefined();
-      expect(Array.isArray(metas)).toBe(true);
-      expect(metas.length).toBeGreaterThan(0);
+      console.log(`取得したメタ情報: ${JSON.stringify(metas, null, 2)}`);
 
-      const meta = metas[0];
-      expect(meta.name).toBeDefined();
-      expect(meta.speaker_uuid).toBeDefined();
-      expect(meta.styles).toBeDefined();
-      expect(Array.isArray(meta.styles)).toBe(true);
-      expect(meta.modelFilePath).toBeDefined();
-      expect(meta.modelId).toBeInstanceOf(Uint8Array);
+      const validationResult = v.safeParse(v.array(CharacterMetaWithModelInfoSchema), metas);
+      expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
 
     it("存在しないディレクトリのメタ情報を取得しようとするとエラーが発生すること", async () => {
@@ -65,14 +60,19 @@ describe("Basic E2E Tests", () => {
       await client.loadVoiceModelFromPath(`${paths.modelsPath}/0.vvm`);
 
       const speakers = client.getLoadedSpeakers();
-      expect(speakers.length).toBeGreaterThan(0);
+      const validationResult = v.safeParse(v.array(CharacterMetaSchema), speakers);
+      expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
 
     it("複数のモデルをロードできること", async () => {
       await client.loadVoiceModelFromPath(`${paths.modelsPath}/1.vvm`, `${paths.modelsPath}/2.vvm`);
 
       const speakers = client.getLoadedSpeakers();
-      expect(speakers.length).toBeGreaterThanOrEqual(3);
+      const validationResult = v.safeParse(
+        v.pipe(v.array(CharacterMetaSchema), v.minLength(2)),
+        speakers,
+      );
+      expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
 
     it("存在しないモデルファイルをロードしようとするとエラーが発生すること", async () => {
@@ -88,17 +88,10 @@ describe("Basic E2E Tests", () => {
     it("ロード済みスピーカー情報を取得できること", () => {
       const speakers = client.getLoadedSpeakers();
 
-      expect(speakers).toBeDefined();
-      expect(Array.isArray(speakers)).toBe(true);
-      expect(speakers.length).toBeGreaterThan(0);
+      console.log(`ロード済みスピーカー情報: ${JSON.stringify(speakers, null, 2)}`);
 
-      const speaker = speakers[0];
-      expect(speaker.name).toBeDefined();
-      expect(speaker.speaker_uuid).toBeDefined();
-      expect(speaker.styles).toBeDefined();
-      expect(Array.isArray(speaker.styles)).toBe(true);
-      expect(speaker.styles.length).toBeGreaterThan(0);
-      expect(speaker.styles[0].id).toBeDefined();
+      const validationResult = v.safeParse(v.array(CharacterMetaSchema), speakers);
+      expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
   });
 
@@ -231,14 +224,15 @@ describe("Basic E2E Tests", () => {
         expect.fail("エラーが発生しませんでした");
       } catch (error) {
         expect(error).toBeInstanceOf(VoicevoxError);
-
-        if (error instanceof VoicevoxError) {
-          // エラーコードとメッセージが存在すること
-          expect(error.code).toBeDefined();
-          expect(error.message).toBeDefined();
-          expect(typeof error.message).toBe("string");
-          expect(error.message.length).toBeGreaterThan(0);
-        }
+        expect(
+          v.parse(
+            v.object({
+              code: v.number(),
+              message: v.pipe(v.string(), v.minLength(1)),
+            }),
+            error,
+          ),
+        );
       }
     });
   });

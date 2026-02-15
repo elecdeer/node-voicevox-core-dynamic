@@ -72,7 +72,6 @@ export { createVoicevoxClient } from "./client/index.js";
 export type {
   VoicevoxClient,
   VoicevoxClientOptions,
-  SpeakerMeta,
-  SpeakerMetaWithModelInfo,
-  SpeakerStyle,
+  CharacterMeta,
+  CharacterMetaWithModelInfo,
 } from "./client/index.js";

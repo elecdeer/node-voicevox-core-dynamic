@@ -4,6 +4,8 @@ import type { VoicevoxClient } from "../src/index.js";
 import { VoicevoxError } from "../src/index.js";
 import { getEnvPaths } from "./helpers/env.js";
 import { analyzeWavAudio } from "./helpers/analyzeWavAudio.js";
+import * as v from "valibot";
+import { AudioQuerySchema } from "./helpers/schemas.js";
 
 describe("AudioQuery E2E Tests", () => {
   let client: VoicevoxClient;
@@ -31,8 +33,8 @@ describe("AudioQuery E2E Tests", () => {
     it("テキストからAudioQueryを生成できること", async () => {
       const audioQuery = await client.createAudioQuery("こんにちは", styleId);
 
-      expect(audioQuery).toBeDefined();
-      expect(audioQuery).toMatchSnapshot();
+      const validationResult = v.safeParse(AudioQuerySchema, audioQuery);
+      expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
 
     it("複雑なテキストからAudioQueryを生成できること", async () => {
@@ -41,8 +43,8 @@ describe("AudioQuery E2E Tests", () => {
         styleId,
       );
 
-      expect(audioQuery).toBeDefined();
-      expect(audioQuery).toMatchSnapshot();
+      const validationResult = v.safeParse(AudioQuerySchema, audioQuery);
+      expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
 
     it("無効なスタイルIDでAudioQueryを生成しようとするとエラーが発生すること", async () => {
@@ -188,22 +190,8 @@ describe("AudioQuery E2E Tests", () => {
     it("アクセント句が正しく生成されること", async () => {
       const audioQuery = await client.createAudioQuery("今日は良い天気です", styleId);
 
-      console.log("AudioQuery:", JSON.stringify(audioQuery, null, 2));
-
-      expect(audioQuery.accent_phrases).toBeDefined();
-      expect(Array.isArray(audioQuery.accent_phrases)).toBe(true);
-      expect(audioQuery.accent_phrases.length).toBeGreaterThan(0);
-
-      const phrase = audioQuery.accent_phrases[0];
-      expect(phrase.moras).toBeDefined();
-      expect(Array.isArray(phrase.moras)).toBe(true);
-      expect(phrase.moras.length).toBeGreaterThan(0);
-
-      const mora = phrase.moras[0];
-      expect(mora.text).toBeDefined();
-      expect(mora.vowel).toBeDefined();
-      expect(mora.vowel_length).toBeDefined();
-      expect(mora.pitch).toBeDefined();
+      const validationResult = v.safeParse(AudioQuerySchema, audioQuery);
+      expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
 
     it.skip("空のアクセント句配列からAudioQueryを生成しようとするとエラーが発生すること", async () => {

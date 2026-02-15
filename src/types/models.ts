@@ -33,7 +33,7 @@ export interface AccentPhrase {
   /** 後続する無音のモーラ */
   pause_mora: Mora | null;
   /** 疑問文かどうか */
-  is_interrogative?: boolean;
+  is_interrogative: boolean;
 }
 
 /**

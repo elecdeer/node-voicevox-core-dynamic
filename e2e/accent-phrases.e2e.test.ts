@@ -4,6 +4,8 @@ import type { VoicevoxClient, AudioQuery } from "../src/index.js";
 import { VoicevoxError } from "../src/index.js";
 import { getEnvPaths } from "./helpers/env.js";
 import { analyzeWavAudio } from "./helpers/analyzeWavAudio.js";
+import * as v from "valibot";
+import { AccentPhraseSchema, AudioQuerySchema } from "./helpers/schemas.js";
 
 describe("Accent Phrases E2E Tests", () => {
   let client: VoicevoxClient;
@@ -31,25 +33,22 @@ describe("Accent Phrases E2E Tests", () => {
     it("テキストからアクセント句を生成できること", async () => {
       const accentPhrases = await client.createAccentPhrases("こんにちは", styleId);
 
-      expect(accentPhrases).toBeDefined();
-      expect(Array.isArray(accentPhrases)).toBe(true);
-      expect(accentPhrases).toMatchSnapshot();
+      const validationResult = v.safeParse(v.array(AccentPhraseSchema), accentPhrases);
+      expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
 
     it("複雑なテキストから複数のアクセント句を生成できること", async () => {
       const accentPhrases = await client.createAccentPhrases("今日は良い天気です", styleId);
 
-      expect(accentPhrases).toBeDefined();
-      expect(Array.isArray(accentPhrases)).toBe(true);
-      expect(accentPhrases).toMatchSnapshot();
+      const validationResult = v.safeParse(v.array(AccentPhraseSchema), accentPhrases);
+      expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
 
     it("アクセント句の構造が正しいこと", async () => {
       const accentPhrases = await client.createAccentPhrases("テスト", styleId);
 
-      expect(accentPhrases).toBeDefined();
-      expect(Array.isArray(accentPhrases)).toBe(true);
-      expect(accentPhrases).toMatchSnapshot();
+      const validationResult = v.safeParse(v.array(AccentPhraseSchema), accentPhrases);
+      expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
 
     it("無効なスタイルIDでアクセント句を生成しようとするとエラーが発生すること", async () => {
@@ -69,8 +68,8 @@ describe("Accent Phrases E2E Tests", () => {
       const accentPhrases = await client.createAccentPhrases("こんにちは", styleId);
       const audioQuery = await client.createAudioQueryFromAccentPhrases(accentPhrases);
 
-      expect(audioQuery).toBeDefined();
-      expect(audioQuery).toMatchSnapshot();
+      const validationResult = v.safeParse(AudioQuerySchema, audioQuery);
+      expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
 
     it("生成したAudioQueryから音声を合成できること", async () => {

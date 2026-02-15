@@ -3,6 +3,9 @@ import { createVoicevoxClient } from "../src/index.js";
 import type { VoicevoxClient } from "../src/index.js";
 import { VoicevoxError } from "../src/index.js";
 import { getEnvPaths } from "./helpers/env.js";
+import * as v from "valibot";
+import { AccentPhraseSchema, AudioQuerySchema } from "./helpers/schemas.js";
+
 describe("Kana Input E2E Tests", () => {
   let client: VoicevoxClient;
   let styleId: number;
@@ -66,8 +69,8 @@ describe("Kana Input E2E Tests", () => {
         styleId,
       );
 
-      expect(audioQuery).toBeDefined();
-      expect(audioQuery).toMatchSnapshot();
+      const validationResult = v.safeParse(AudioQuerySchema, audioQuery);
+      expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
 
     it("カナから生成したAudioQueryで音声を合成できること", async () => {
@@ -101,9 +104,8 @@ describe("Kana Input E2E Tests", () => {
         styleId,
       );
 
-      expect(accentPhrases).toBeDefined();
-      expect(Array.isArray(accentPhrases)).toBe(true);
-      expect(accentPhrases).toMatchSnapshot();
+      const validationResult = v.safeParse(v.array(AccentPhraseSchema), accentPhrases);
+      expect(validationResult.issues && v.flatten(validationResult.issues)).toBeUndefined();
     });
 
     it("AquesTalk風記法でないカナでアクセント句を生成しようとするとエラーが発生すること", async () => {

@@ -280,17 +280,14 @@ export async function createAccentPhrases(
     styleId,
     outJson,
   );
-  console.log("createAccentPhrases: resultCode =", resultCode);
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode, message);
   }
-  console.log("createAccentPhrases: outJson =", outJson);
 
   const jsonPtr = outJson[0];
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
-  console.log("createAccentPhrases: jsonStr =", jsonStr);
   freeJson(functions.lib, jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
