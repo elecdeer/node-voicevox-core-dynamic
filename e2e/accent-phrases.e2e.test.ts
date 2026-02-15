@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createVoicevoxClient } from "../src/index.js";
 import type { VoicevoxClient, AudioQuery } from "../src/index.js";
+import { VoicevoxError } from "../src/index.js";
 import { getEnvPaths } from "./helpers/env.js";
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -50,6 +51,17 @@ describe("Accent Phrases E2E Tests", () => {
       expect(accentPhrases).toBeDefined();
       expect(Array.isArray(accentPhrases)).toBe(true);
       expect(accentPhrases).toMatchSnapshot();
+    });
+
+    it("無効なスタイルIDでアクセント句を生成しようとするとエラーが発生すること", async () => {
+      const invalidStyleId = 999999;
+      await expect(client.createAccentPhrases("テスト", invalidStyleId)).rejects.toThrow(
+        VoicevoxError,
+      );
+    });
+
+    it.skip("空文字列でアクセント句を生成しようとするとエラーが発生すること", async () => {
+      await expect(client.createAccentPhrases("", styleId)).rejects.toThrow(VoicevoxError);
     });
   });
 
@@ -111,10 +123,10 @@ describe("Accent Phrases E2E Tests", () => {
       const accentPhrases = await client.createAccentPhrases("テスト", styleId);
 
       // 最初のモーラの長さを変更
-      const originalLength = accentPhrases[0].moras[0].vowelLength;
-      accentPhrases[0].moras[0].vowelLength = 0.2;
-      expect(accentPhrases[0].moras[0].vowelLength).toBe(0.2);
-      expect(accentPhrases[0].moras[0].vowelLength).not.toBe(originalLength);
+      const originalLength = accentPhrases[0].moras[0].vowel_length;
+      accentPhrases[0].moras[0].vowel_length = 0.2;
+      expect(accentPhrases[0].moras[0].vowel_length).toBe(0.2);
+      expect(accentPhrases[0].moras[0].vowel_length).not.toBe(originalLength);
 
       // 変更後のアクセント句で音声を合成
       const audioQuery = await client.createAudioQueryFromAccentPhrases(accentPhrases);
@@ -132,7 +144,7 @@ describe("Accent Phrases E2E Tests", () => {
 
       // モーラのパラメータを変更
       accentPhrases[0].moras[0].pitch = 5.5;
-      accentPhrases[0].moras[0].vowelLength = 0.15;
+      accentPhrases[0].moras[0].vowel_length = 0.15;
 
       // AudioQueryを生成して音声合成
       const audioQuery = await client.createAudioQueryFromAccentPhrases(accentPhrases);

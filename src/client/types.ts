@@ -155,7 +155,7 @@ export interface VoicevoxClient extends Disposable {
    * @param styleId - スタイルID
    * @returns アクセント句の配列
    */
-  createAccentPhrases(text: string, styleId: number): Promise<AudioQuery["accentPhrases"]>;
+  createAccentPhrases(text: string, styleId: number): Promise<AudioQuery["accent_phrases"]>;
 
   /**
    * カナ（AquesTalk風記法）からアクセント句を生成する
@@ -164,7 +164,7 @@ export interface VoicevoxClient extends Disposable {
    * @param styleId - スタイルID
    * @returns アクセント句の配列
    */
-  createAccentPhrasesFromKana(kana: string, styleId: number): Promise<AudioQuery["accentPhrases"]>;
+  createAccentPhrasesFromKana(kana: string, styleId: number): Promise<AudioQuery["accent_phrases"]>;
 
   /**
    * アクセント句からAudioQueryを生成する
@@ -173,7 +173,7 @@ export interface VoicevoxClient extends Disposable {
    * @returns AudioQuery
    */
   createAudioQueryFromAccentPhrases(
-    accentPhrases: AudioQuery["accentPhrases"],
+    accentPhrases: AudioQuery["accent_phrases"],
   ): Promise<AudioQuery>;
 
   /**

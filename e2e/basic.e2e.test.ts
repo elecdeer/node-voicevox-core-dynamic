@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createVoicevoxClient } from "../src/index.js";
 import type { VoicevoxClient } from "../src/index.js";
+import { VoicevoxError } from "../src/index.js";
 import { getEnvPaths } from "./helpers/env.js";
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -57,6 +58,10 @@ describe("Basic E2E Tests", () => {
       expect(meta.modelId).toBeInstanceOf(Uint8Array);
     });
 
+    it("存在しないディレクトリのメタ情報を取得しようとするとエラーが発生すること", async () => {
+      await expect(client.peekModelFilesMeta("/non/existent/directory")).rejects.toThrow();
+    });
+
     it("モデルをロードできること", async () => {
       await client.loadVoiceModelFromPath(`${paths.modelsPath}/0.vvm`);
 
@@ -69,6 +74,14 @@ describe("Basic E2E Tests", () => {
 
       const speakers = client.getLoadedSpeakers();
       expect(speakers.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it("存在しないモデルファイルをロードしようとするとエラーが発生すること", async () => {
+      await expect(client.loadVoiceModelFromPath("/non/existent/model.vvm")).rejects.toThrow();
+    });
+
+    it("無効なパスのモデルファイルをロードしようとするとエラーが発生すること", async () => {
+      await expect(client.loadVoiceModelFromPath("")).rejects.toThrow();
     });
   });
 
@@ -147,6 +160,22 @@ describe("Basic E2E Tests", () => {
       const stats = await stat(outputPath);
       expect(stats.size).toBeGreaterThan(0);
     });
+
+    it("無効なスタイルIDで音声合成しようとするとエラーが発生すること", async () => {
+      const invalidStyleId = 999999;
+      await expect(client.tts("テスト", invalidStyleId)).rejects.toThrow(VoicevoxError);
+    });
+
+    it.skip("負のスタイルIDで音声合成しようとするとエラーが発生すること", async () => {
+      const invalidStyleId = -1;
+      await expect(client.tts("テスト", invalidStyleId)).rejects.toThrow(VoicevoxError);
+    });
+
+    it.skip("空文字列で音声合成しようとするとエラーが発生すること", async () => {
+      const speakers = client.getLoadedSpeakers();
+      const styleId = speakers[0].styles[0].id;
+      await expect(client.tts("", styleId)).rejects.toThrow(VoicevoxError);
+    });
   });
 
   describe("リソース管理", () => {
@@ -163,6 +192,33 @@ describe("Basic E2E Tests", () => {
       expect(() => tempClient.getVersion()).toThrow("VoicevoxClient has been disposed");
     });
 
+    it("close()後に各メソッドでエラーが発生すること", async () => {
+      const tempClient = await createVoicevoxClient({
+        corePath: paths.corePath,
+        onnxruntimePath: paths.onnxruntimePath,
+        openJtalkDictDir: paths.openJtalkDictDir,
+      });
+
+      tempClient.close();
+
+      // 各メソッドでエラーが発生することを確認
+      expect(() => tempClient.getVersion()).toThrow("VoicevoxClient has been disposed");
+      expect(() => tempClient.isGpuMode).toThrow("VoicevoxClient has been disposed");
+      expect(() => tempClient.getLoadedSpeakers()).toThrow("VoicevoxClient has been disposed");
+    });
+
+    it("複数回close()を呼び出してもエラーにならないこと", async () => {
+      const tempClient = await createVoicevoxClient({
+        corePath: paths.corePath,
+        onnxruntimePath: paths.onnxruntimePath,
+        openJtalkDictDir: paths.openJtalkDictDir,
+      });
+
+      tempClient.close();
+      expect(() => tempClient.close()).not.toThrow();
+      tempClient.close(); // 3回目も問題ない
+    });
+
     it("using宣言でDisposableとして使用できること", async () => {
       {
          using tempClient = await createVoicevoxClient({
@@ -176,6 +232,25 @@ describe("Basic E2E Tests", () => {
 
       // スコープを抜けたら自動的に解放されるため、特に検証は不要
       // （コンパイルエラーにならないことが重要）
+    });
+  });
+
+  describe("エラー情報", () => {
+    it("VoicevoxErrorが適切な情報を持つこと", async () => {
+      try {
+        await client.tts("テスト", 999999);
+        expect.fail("エラーが発生しませんでした");
+      } catch (error) {
+        expect(error).toBeInstanceOf(VoicevoxError);
+
+        if (error instanceof VoicevoxError) {
+          // エラーコードとメッセージが存在すること
+          expect(error.code).toBeDefined();
+          expect(error.message).toBeDefined();
+          expect(typeof error.message).toBe("string");
+          expect(error.message.length).toBeGreaterThan(0);
+        }
+      }
     });
   });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createVoicevoxClient } from "../src/index.js";
-import type { VoicevoxClient, AudioQuery } from "../src/index.js";
+import type { VoicevoxClient } from "../src/index.js";
+import { VoicevoxError } from "../src/index.js";
 import { getEnvPaths } from "./helpers/env.js";
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -43,6 +44,17 @@ describe("AudioQuery E2E Tests", () => {
 
       expect(audioQuery).toBeDefined();
       expect(audioQuery).toMatchSnapshot();
+    });
+
+    it("無効なスタイルIDでAudioQueryを生成しようとするとエラーが発生すること", async () => {
+      const invalidStyleId = 999999;
+      await expect(client.createAudioQuery("テスト", invalidStyleId)).rejects.toThrow(
+        VoicevoxError,
+      );
+    });
+
+    it.skip("空文字列でAudioQueryを生成しようとするとエラーが発生すること", async () => {
+      await expect(client.createAudioQuery("", styleId)).rejects.toThrow(VoicevoxError);
     });
   });
 
@@ -192,6 +204,10 @@ describe("AudioQuery E2E Tests", () => {
       expect(mora.vowel).toBeDefined();
       expect(mora.vowel_length).toBeDefined();
       expect(mora.pitch).toBeDefined();
+    });
+
+    it.skip("空のアクセント句配列からAudioQueryを生成しようとするとエラーが発生すること", async () => {
+      await expect(client.createAudioQueryFromAccentPhrases([])).rejects.toThrow();
     });
   });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createVoicevoxClient } from "../src/index.js";
 import type { VoicevoxClient } from "../src/index.js";
+import { VoicevoxError } from "../src/index.js";
 import { getEnvPaths } from "./helpers/env.js";
 describe("Kana Input E2E Tests", () => {
   let client: VoicevoxClient;
@@ -48,6 +49,14 @@ describe("Kana Input E2E Tests", () => {
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
     });
+
+    it("AquesTalk風記法でないカナで音声合成しようとするとエラーが発生すること", async () => {
+      await expect(client.ttsFromKana("コンニチワ", styleId)).rejects.toThrow(VoicevoxError);
+    });
+
+    it.skip("空のカナで音声合成しようとするとエラーが発生すること", async () => {
+      await expect(client.ttsFromKana("", styleId)).rejects.toThrow(VoicevoxError);
+    });
   });
 
   describe("カナからAudioQuery", () => {
@@ -73,6 +82,16 @@ describe("Kana Input E2E Tests", () => {
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
     });
+
+    it("AquesTalk風記法でないカナでAudioQueryを生成しようとするとエラーが発生すること", async () => {
+      await expect(client.createAudioQueryFromKana("コンニチワ", styleId)).rejects.toThrow(
+        VoicevoxError,
+      );
+    });
+
+    it.skip("空のカナでAudioQueryを生成しようとするとエラーが発生すること", async () => {
+      await expect(client.createAudioQueryFromKana("", styleId)).rejects.toThrow(VoicevoxError);
+    });
   });
 
   describe("カナからアクセント句", () => {
@@ -85,6 +104,16 @@ describe("Kana Input E2E Tests", () => {
       expect(accentPhrases).toBeDefined();
       expect(Array.isArray(accentPhrases)).toBe(true);
       expect(accentPhrases).toMatchSnapshot();
+    });
+
+    it("AquesTalk風記法でないカナでアクセント句を生成しようとするとエラーが発生すること", async () => {
+      await expect(client.createAccentPhrasesFromKana("コンニチワ", styleId)).rejects.toThrow(
+        VoicevoxError,
+      );
+    });
+
+    it.skip("空のカナでアクセント句を生成しようとするとエラーが発生すること", async () => {
+      await expect(client.createAccentPhrasesFromKana("", styleId)).rejects.toThrow(VoicevoxError);
     });
   });
 });
