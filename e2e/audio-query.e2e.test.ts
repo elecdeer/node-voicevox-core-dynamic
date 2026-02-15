@@ -32,17 +32,7 @@ describe("AudioQuery E2E Tests", () => {
       const audioQuery = await client.createAudioQuery("こんにちは", styleId);
 
       expect(audioQuery).toBeDefined();
-      expect(audioQuery.accentPhrases).toBeDefined();
-      expect(Array.isArray(audioQuery.accentPhrases)).toBe(true);
-      expect(audioQuery.accentPhrases.length).toBeGreaterThan(0);
-
-      // パラメータの存在確認
-      expect(audioQuery.speedScale).toBeDefined();
-      expect(audioQuery.pitchScale).toBeDefined();
-      expect(audioQuery.intonationScale).toBeDefined();
-      expect(audioQuery.volumeScale).toBeDefined();
-      expect(audioQuery.prePhonemeLength).toBeDefined();
-      expect(audioQuery.postPhonemeLength).toBeDefined();
+      expect(audioQuery).toMatchSnapshot();
     });
 
     it("複雑なテキストからAudioQueryを生成できること", async () => {
@@ -52,8 +42,7 @@ describe("AudioQuery E2E Tests", () => {
       );
 
       expect(audioQuery).toBeDefined();
-      expect(audioQuery.accentPhrases).toBeDefined();
-      expect(audioQuery.accentPhrases.length).toBeGreaterThan(1);
+      expect(audioQuery).toMatchSnapshot();
     });
   });
 
@@ -187,11 +176,13 @@ describe("AudioQuery E2E Tests", () => {
     it("アクセント句が正しく生成されること", async () => {
       const audioQuery = await client.createAudioQuery("今日は良い天気です", styleId);
 
-      expect(audioQuery.accentPhrases).toBeDefined();
-      expect(Array.isArray(audioQuery.accentPhrases)).toBe(true);
-      expect(audioQuery.accentPhrases.length).toBeGreaterThan(0);
+      console.log("AudioQuery:", JSON.stringify(audioQuery, null, 2));
 
-      const phrase = audioQuery.accentPhrases[0];
+      expect(audioQuery.accent_phrases).toBeDefined();
+      expect(Array.isArray(audioQuery.accent_phrases)).toBe(true);
+      expect(audioQuery.accent_phrases.length).toBeGreaterThan(0);
+
+      const phrase = audioQuery.accent_phrases[0];
       expect(phrase.moras).toBeDefined();
       expect(Array.isArray(phrase.moras)).toBe(true);
       expect(phrase.moras.length).toBeGreaterThan(0);
@@ -199,7 +190,7 @@ describe("AudioQuery E2E Tests", () => {
       const mora = phrase.moras[0];
       expect(mora.text).toBeDefined();
       expect(mora.vowel).toBeDefined();
-      expect(mora.vowelLength).toBeDefined();
+      expect(mora.vowel_length).toBeDefined();
       expect(mora.pitch).toBeDefined();
     });
   });

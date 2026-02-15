@@ -74,6 +74,15 @@ async function main() {
 
   console.log("\n✅ Done!");
   // usingブロックを抜けると自動的にリソースが解放される
+
+  // 空文字列で合成してみる
+  console.log("\n🎵 Synthesizing empty text...");
+  const emptyWav = await client.tts("こんにちは、VOICEVOXです。", 9999);
+  console.log(`✅ Generated ${emptyWav.length} bytes of WAV data for empty text`);
+
+  const emptyOutputPath = `${process.env.OUTPUT_DIR}/empty.wav`;
+  await writeFile(emptyOutputPath, emptyWav);
+  console.log(`💾 Saved to ${emptyOutputPath}`);
 }
 
 main().catch((error) => {

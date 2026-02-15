@@ -33,44 +33,23 @@ describe("Accent Phrases E2E Tests", () => {
 
       expect(accentPhrases).toBeDefined();
       expect(Array.isArray(accentPhrases)).toBe(true);
-      expect(accentPhrases.length).toBeGreaterThan(0);
+      expect(accentPhrases).toMatchSnapshot();
     });
 
     it("複雑なテキストから複数のアクセント句を生成できること", async () => {
       const accentPhrases = await client.createAccentPhrases("今日は良い天気です", styleId);
 
       expect(accentPhrases).toBeDefined();
-      expect(accentPhrases.length).toBeGreaterThan(1);
+      expect(Array.isArray(accentPhrases)).toBe(true);
+      expect(accentPhrases).toMatchSnapshot();
     });
 
     it("アクセント句の構造が正しいこと", async () => {
       const accentPhrases = await client.createAccentPhrases("テスト", styleId);
 
-      const phrase = accentPhrases[0];
-      expect(phrase).toBeDefined();
-
-      // moras（モーラ）配列
-      expect(phrase.moras).toBeDefined();
-      expect(Array.isArray(phrase.moras)).toBe(true);
-      expect(phrase.moras.length).toBeGreaterThan(0);
-
-      // mora（モーラ）の構造
-      const mora = phrase.moras[0];
-      expect(mora.text).toBeDefined();
-      expect(typeof mora.text).toBe("string");
-      expect(mora.vowel).toBeDefined();
-      expect(typeof mora.vowel).toBe("string");
-      expect(mora.vowelLength).toBeDefined();
-      expect(typeof mora.vowelLength).toBe("number");
-      expect(mora.pitch).toBeDefined();
-      expect(typeof mora.pitch).toBe("number");
-
-      // accent（アクセント位置）
-      expect(phrase.accent).toBeDefined();
-      expect(typeof phrase.accent).toBe("number");
-
-      // pauseMora（ポーズ）
-      expect(phrase.pauseMora).toBeDefined();
+      expect(accentPhrases).toBeDefined();
+      expect(Array.isArray(accentPhrases)).toBe(true);
+      expect(accentPhrases).toMatchSnapshot();
     });
   });
 
@@ -80,14 +59,7 @@ describe("Accent Phrases E2E Tests", () => {
       const audioQuery = await client.createAudioQueryFromAccentPhrases(accentPhrases);
 
       expect(audioQuery).toBeDefined();
-      expect(audioQuery.accentPhrases).toBeDefined();
-      expect(audioQuery.accentPhrases).toBe(accentPhrases);
-
-      // パラメータの存在確認
-      expect(audioQuery.speedScale).toBeDefined();
-      expect(audioQuery.pitchScale).toBeDefined();
-      expect(audioQuery.intonationScale).toBeDefined();
-      expect(audioQuery.volumeScale).toBeDefined();
+      expect(audioQuery).toMatchSnapshot();
     });
 
     it("生成したAudioQueryから音声を合成できること", async () => {
@@ -191,7 +163,7 @@ describe("Accent Phrases E2E Tests", () => {
       const phrases2 = await client.createAccentPhrases("さようなら", styleId);
 
       // アクセント句を結合
-      const combinedPhrases: AudioQuery["accentPhrases"] = [...phrases1, ...phrases2];
+      const combinedPhrases: AudioQuery["accent_phrases"] = [...phrases1, ...phrases2];
 
       // 結合したアクセント句からAudioQueryを生成
       const audioQuery = await client.createAudioQueryFromAccentPhrases(combinedPhrases);

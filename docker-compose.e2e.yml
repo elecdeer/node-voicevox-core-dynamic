@@ -6,6 +6,8 @@ services:
     volumes:
       # 出力ディレクトリをマウント（テスト結果のWAVファイル確認用）
       - ./output:/app/output
+      # e2eディレクトリをマウント（スナップショットファイル保存用）
+      - ./e2e:/app/e2e
     environment:
       - NODE_ENV=test
       - VOICEVOX_CORE_C_API_PATH=/opt/voicevox/lib/libvoicevox_core.so

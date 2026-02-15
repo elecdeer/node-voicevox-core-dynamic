@@ -318,6 +318,10 @@ export interface VoicevoxCoreFunctions {
  * @returns C API関数群
  */
 export function declareFunctions(lib: IKoffiLib): VoicevoxCoreFunctions {
+  // C APIの宣言ではchar*を返しているが、ここではvoid*で宣言しているものがある
+  // それらは後でC APIを呼び出してメモリを解放する必要があり、ポインタのまま持っておかなければならない
+  // しかし、koffiはchar*を文字列として自動変換してしまうため、C APIの宣言ではchar*を返す関数もvoid*で宣言している
+
   return {
     // ライブラリインスタンス
     lib,
@@ -400,19 +404,19 @@ export function declareFunctions(lib: IKoffiLib): VoicevoxCoreFunctions {
 
     // AudioQuery/AccentPhrase生成
     voicevox_synthesizer_create_audio_query: lib.func(
-      "int32 voicevox_synthesizer_create_audio_query(const VoicevoxSynthesizerPtr synthesizer, const char* text, uint32 style_id, _Out_ char** output_audio_query_json)",
+      "int32 voicevox_synthesizer_create_audio_query(const VoicevoxSynthesizerPtr synthesizer, const char* text, uint32 style_id, _Out_ void** output_audio_query_json)",
     ),
     voicevox_synthesizer_create_audio_query_from_kana: lib.func(
-      "int32 voicevox_synthesizer_create_audio_query_from_kana(const VoicevoxSynthesizerPtr synthesizer, const char* kana, uint32 style_id, _Out_ char** output_audio_query_json)",
+      "int32 voicevox_synthesizer_create_audio_query_from_kana(const VoicevoxSynthesizerPtr synthesizer, const char* kana, uint32 style_id, _Out_ void** output_audio_query_json)",
     ),
     voicevox_synthesizer_create_accent_phrases: lib.func(
-      "int32 voicevox_synthesizer_create_accent_phrases(const VoicevoxSynthesizerPtr synthesizer, const char* text, uint32 style_id, _Out_ char** output_accent_phrases_json)",
+      "int32 voicevox_synthesizer_create_accent_phrases(const VoicevoxSynthesizerPtr synthesizer, const char* text, uint32 style_id, _Out_ void** output_accent_phrases_json)",
     ),
     voicevox_synthesizer_create_accent_phrases_from_kana: lib.func(
-      "int32 voicevox_synthesizer_create_accent_phrases_from_kana(const VoicevoxSynthesizerPtr synthesizer, const char* kana, uint32 style_id, _Out_ char** output_accent_phrases_json)",
+      "int32 voicevox_synthesizer_create_accent_phrases_from_kana(const VoicevoxSynthesizerPtr synthesizer, const char* kana, uint32 style_id, _Out_ void** output_accent_phrases_json)",
     ),
     voicevox_audio_query_create_from_accent_phrases: lib.func(
-      "int32 voicevox_audio_query_create_from_accent_phrases(const char* accent_phrases_json, _Out_ char** output_audio_query_json)",
+      "int32 voicevox_audio_query_create_from_accent_phrases(const char* accent_phrases_json, _Out_ void** output_audio_query_json)",
     ),
 
     // 音声合成

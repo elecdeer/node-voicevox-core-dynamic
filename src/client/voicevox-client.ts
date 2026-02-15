@@ -33,11 +33,7 @@ import type {
   SpeakerMeta,
   SpeakerMetaWithModelInfo,
 } from "./types.js";
-import type {
-  AudioQuery,
-  SynthesisOptions,
-  TtsOptions,
-} from "../types/index.js";
+import type { AudioQuery, SynthesisOptions, TtsOptions } from "../types/index.js";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -179,7 +175,10 @@ export async function createVoicevoxClient(
       return synthesizerCreateAudioQueryFromKana(functions, synthesizer, kana, styleId);
     },
 
-    async createAccentPhrases(text: string, styleId: number): Promise<AudioQuery["accentPhrases"]> {
+    async createAccentPhrases(
+      text: string,
+      styleId: number,
+    ): Promise<AudioQuery["accent_phrases"]> {
       ensureNotDisposed();
       return synthesizerCreateAccentPhrases(functions, synthesizer, text, styleId);
     },
@@ -187,13 +186,13 @@ export async function createVoicevoxClient(
     async createAccentPhrasesFromKana(
       kana: string,
       styleId: number,
-    ): Promise<AudioQuery["accentPhrases"]> {
+    ): Promise<AudioQuery["accent_phrases"]> {
       ensureNotDisposed();
       return synthesizerCreateAccentPhrasesFromKana(functions, synthesizer, kana, styleId);
     },
 
     async createAudioQueryFromAccentPhrases(
-      accentPhrases: AudioQuery["accentPhrases"],
+      accentPhrases: AudioQuery["accent_phrases"],
     ): Promise<AudioQuery> {
       ensureNotDisposed();
       return synthesizerCreateAudioQueryFromAccentPhrases(functions, accentPhrases);

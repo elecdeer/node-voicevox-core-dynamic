@@ -271,7 +271,7 @@ export async function createAccentPhrases(
   synthesizer: SynthesizerHandle,
   text: string,
   styleId: number,
-): Promise<AudioQuery["accentPhrases"]> {
+): Promise<AudioQuery["accent_phrases"]> {
   const outJson: [OutJsonStringHandle | null] = [null];
   const resultCode = await promisifyKoffiAsync(
     functions.voicevox_synthesizer_create_accent_phrases,
@@ -280,17 +280,20 @@ export async function createAccentPhrases(
     styleId,
     outJson,
   );
+  console.log("createAccentPhrases: resultCode =", resultCode);
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode, message);
   }
+  console.log("createAccentPhrases: outJson =", outJson);
 
   const jsonPtr = outJson[0];
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  console.log("createAccentPhrases: jsonStr =", jsonStr);
   freeJson(functions.lib, jsonPtr);
 
-  return JSON.parse(jsonStr) as AudioQuery["accentPhrases"];
+  return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
 }
 
 /**
@@ -308,7 +311,7 @@ export async function createAccentPhrasesFromKana(
   synthesizer: SynthesizerHandle,
   kana: string,
   styleId: number,
-): Promise<AudioQuery["accentPhrases"]> {
+): Promise<AudioQuery["accent_phrases"]> {
   const outJson: [OutJsonStringHandle | null] = [null];
   const resultCode = await promisifyKoffiAsync(
     functions.voicevox_synthesizer_create_accent_phrases_from_kana,
@@ -327,7 +330,7 @@ export async function createAccentPhrasesFromKana(
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
   freeJson(functions.lib, jsonPtr);
 
-  return JSON.parse(jsonStr) as AudioQuery["accentPhrases"];
+  return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
 }
 
 /**
@@ -340,7 +343,7 @@ export async function createAccentPhrasesFromKana(
  */
 export async function createAudioQueryFromAccentPhrases(
   functions: VoicevoxCoreFunctions,
-  accentPhrases: AudioQuery["accentPhrases"],
+  accentPhrases: AudioQuery["accent_phrases"],
 ): Promise<AudioQuery> {
   const accentPhrasesJson = JSON.stringify(accentPhrases);
   const outJson: [OutJsonStringHandle | null] = [null];

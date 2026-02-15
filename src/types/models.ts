@@ -13,11 +13,11 @@ export interface Mora {
   /** 子音の音素 */
   consonant: string | null;
   /** 子音の音長 */
-  consonantLength: number | null;
+  consonant_length: number | null;
   /** 母音の音素 */
   vowel: string;
   /** 母音の音長 */
-  vowelLength: number;
+  vowel_length: number;
   /** 音高 */
   pitch: number;
 }
@@ -31,19 +31,21 @@ export interface AccentPhrase {
   /** アクセント位置 */
   accent: number;
   /** 後続する無音のモーラ */
-  pauseMora: Mora | null;
+  pause_mora: Mora | null;
   /** 疑問文かどうか */
-  isInterrogative?: boolean;
+  is_interrogative?: boolean;
 }
 
 /**
  * AudioQuery
  *
  * 音声合成用のクエリ
+ *
+ * camelCaseとsnake_caseが混在しているのは、APIの仕様に合わせているためです。
  */
 export interface AudioQuery {
   /** アクセント句の配列 */
-  accentPhrases: AccentPhrase[];
+  accent_phrases: AccentPhrase[];
   /** 全体の話速 */
   speedScale: number;
   /** 全体の音高 */
