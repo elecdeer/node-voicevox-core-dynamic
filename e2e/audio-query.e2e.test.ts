@@ -3,8 +3,7 @@ import { createVoicevoxClient } from "../src/index.js";
 import type { VoicevoxClient } from "../src/index.js";
 import { VoicevoxError } from "../src/index.js";
 import { getEnvPaths } from "./helpers/env.js";
-import { writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { analyzeWavAudio } from "./helpers/analyzeWavAudio.js";
 
 describe("AudioQuery E2E Tests", () => {
   let client: VoicevoxClient;
@@ -70,6 +69,9 @@ describe("AudioQuery E2E Tests", () => {
       const wav = await client.synthesize(audioQuery, styleId);
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
+
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
 
     it("pitchScaleを調整できること", async () => {
@@ -82,6 +84,9 @@ describe("AudioQuery E2E Tests", () => {
       // 合成できることを確認
       const wav = await client.synthesize(audioQuery, styleId);
       expect(wav).toBeInstanceOf(Uint8Array);
+
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
 
     it("intonationScaleを調整できること", async () => {
@@ -94,6 +99,9 @@ describe("AudioQuery E2E Tests", () => {
       // 合成できることを確認
       const wav = await client.synthesize(audioQuery, styleId);
       expect(wav).toBeInstanceOf(Uint8Array);
+
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
 
     it("volumeScaleを調整できること", async () => {
@@ -106,6 +114,9 @@ describe("AudioQuery E2E Tests", () => {
       // 合成できることを確認
       const wav = await client.synthesize(audioQuery, styleId);
       expect(wav).toBeInstanceOf(Uint8Array);
+
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
 
     it("複数のパラメータを同時に調整できること", async () => {
@@ -120,6 +131,9 @@ describe("AudioQuery E2E Tests", () => {
       // 合成できることを確認
       const wav = await client.synthesize(audioQuery, styleId);
       expect(wav).toBeInstanceOf(Uint8Array);
+
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
   });
 
@@ -136,6 +150,9 @@ describe("AudioQuery E2E Tests", () => {
       expect(wav[1]).toBe(0x49); // 'I'
       expect(wav[2]).toBe(0x46); // 'F'
       expect(wav[3]).toBe(0x46); // 'F'
+
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
 
     it("synthesisOptionsを指定して合成できること", async () => {
@@ -146,6 +163,9 @@ describe("AudioQuery E2E Tests", () => {
 
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
+
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
 
     it("パラメータ調整後のAudioQueryから音声を合成できること", async () => {
@@ -158,29 +178,9 @@ describe("AudioQuery E2E Tests", () => {
       const wav = await client.synthesize(audioQuery, styleId);
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
-    });
 
-    it("AudioQueryから合成したWAVファイルを出力できること", async () => {
-      const audioQuery = await client.createAudioQuery("ファイル出力テスト", styleId);
-
-      // パラメータを調整
-      audioQuery.speedScale = 1.2;
-      audioQuery.pitchScale = 1.1;
-      audioQuery.intonationScale = 1.3;
-
-      const wav = await client.synthesize(audioQuery, styleId);
-
-      // outputディレクトリを作成
-      await mkdir(paths.outputDir, { recursive: true });
-
-      // WAVファイルを保存
-      const outputPath = join(paths.outputDir, "audio-query-test.wav");
-      await writeFile(outputPath, wav);
-
-      // ファイルが作成されたことを確認
-      const { stat } = await import("node:fs/promises");
-      const stats = await stat(outputPath);
-      expect(stats.size).toBeGreaterThan(0);
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
   });
 

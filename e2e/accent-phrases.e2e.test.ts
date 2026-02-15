@@ -3,8 +3,7 @@ import { createVoicevoxClient } from "../src/index.js";
 import type { VoicevoxClient, AudioQuery } from "../src/index.js";
 import { VoicevoxError } from "../src/index.js";
 import { getEnvPaths } from "./helpers/env.js";
-import { writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { analyzeWavAudio } from "./helpers/analyzeWavAudio.js";
 
 describe("Accent Phrases E2E Tests", () => {
   let client: VoicevoxClient;
@@ -81,6 +80,9 @@ describe("Accent Phrases E2E Tests", () => {
 
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
+
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
   });
 
@@ -100,6 +102,9 @@ describe("Accent Phrases E2E Tests", () => {
 
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
+
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
 
     it("モーラの音高を変更できること", async () => {
@@ -117,6 +122,9 @@ describe("Accent Phrases E2E Tests", () => {
 
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
+
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
 
     it("モーラの長さを変更できること", async () => {
@@ -134,38 +142,9 @@ describe("Accent Phrases E2E Tests", () => {
 
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
-    });
 
-    it("複数の変更を組み合わせて適用できること", async () => {
-      const accentPhrases = await client.createAccentPhrases("こんにちは", styleId);
-
-      // アクセント位置を変更
-      accentPhrases[0].accent = 2;
-
-      // モーラのパラメータを変更
-      accentPhrases[0].moras[0].pitch = 5.5;
-      accentPhrases[0].moras[0].vowel_length = 0.15;
-
-      // AudioQueryを生成して音声合成
-      const audioQuery = await client.createAudioQueryFromAccentPhrases(accentPhrases);
-
-      // AudioQueryのパラメータも調整
-      audioQuery.speedScale = 1.2;
-      audioQuery.pitchScale = 1.1;
-
-      const wav = await client.synthesize(audioQuery, styleId);
-
-      expect(wav).toBeInstanceOf(Uint8Array);
-      expect(wav.length).toBeGreaterThan(0);
-
-      // WAVファイルを出力
-      await mkdir(paths.outputDir, { recursive: true });
-      const outputPath = join(paths.outputDir, "accent-phrases-modified-test.wav");
-      await writeFile(outputPath, wav);
-
-      const { stat } = await import("node:fs/promises");
-      const stats = await stat(outputPath);
-      expect(stats.size).toBeGreaterThan(0);
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
   });
 
@@ -183,6 +162,9 @@ describe("Accent Phrases E2E Tests", () => {
 
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
+
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
   });
 });

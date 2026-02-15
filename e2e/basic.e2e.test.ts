@@ -3,8 +3,7 @@ import { createVoicevoxClient } from "../src/index.js";
 import type { VoicevoxClient } from "../src/index.js";
 import { VoicevoxError } from "../src/index.js";
 import { getEnvPaths } from "./helpers/env.js";
-import { writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { analyzeWavAudio } from "./helpers/analyzeWavAudio.js";
 
 describe("Basic E2E Tests", () => {
   let client: VoicevoxClient;
@@ -118,6 +117,9 @@ describe("Basic E2E Tests", () => {
       expect(wav[1]).toBe(0x49); // 'I'
       expect(wav[2]).toBe(0x46); // 'F'
       expect(wav[3]).toBe(0x46); // 'F'
+
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
 
     it("短いテキストから音声を合成できること", async () => {
@@ -128,6 +130,9 @@ describe("Basic E2E Tests", () => {
 
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
+
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
 
     it("TTSオプションを指定して音声を合成できること", async () => {
@@ -140,25 +145,9 @@ describe("Basic E2E Tests", () => {
 
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
-    });
 
-    it("WAVファイルを出力できること", async () => {
-      const speakers = client.getLoadedSpeakers();
-      const styleId = speakers[0].styles[0].id;
-
-      const wav = await client.tts("ファイル出力テスト", styleId);
-
-      // outputディレクトリを作成
-      await mkdir(paths.outputDir, { recursive: true });
-
-      // WAVファイルを保存
-      const outputPath = join(paths.outputDir, "basic-tts-test.wav");
-      await writeFile(outputPath, wav);
-
-      // ファイルが作成されたことを確認
-      const { stat } = await import("node:fs/promises");
-      const stats = await stat(outputPath);
-      expect(stats.size).toBeGreaterThan(0);
+      const { isMeaningful } = analyzeWavAudio(wav);
+      expect(isMeaningful).toBe(true);
     });
 
     it("無効なスタイルIDで音声合成しようとするとエラーが発生すること", async () => {
@@ -221,7 +210,7 @@ describe("Basic E2E Tests", () => {
 
     it("using宣言でDisposableとして使用できること", async () => {
       {
-         using tempClient = await createVoicevoxClient({
+        using tempClient = await createVoicevoxClient({
           corePath: paths.corePath,
           onnxruntimePath: paths.onnxruntimePath,
           openJtalkDictDir: paths.openJtalkDictDir,
