@@ -233,11 +233,11 @@ export interface VoicevoxClient extends Disposable {
    * createSingFrameAudioQueryとframeSynthesizeを組み合わせた便利メソッドです。
    *
    * @param score - 楽譜
-   * @param styleId - スタイルID
-   * @param options - 合成オプション
+   * @param teacherStyleId - 教師スタイルID typeが "singing_teacher" あるいは "sing" のスタイルを指定
+   * @param singerStyleId - 歌手スタイルID typeが "frame_decode" あるいは "sing" のスタイルを指定
    * @returns WAV形式の音声データ
    */
-  sing(score: Score, styleId: number, options?: SynthesisOptions): Promise<Uint8Array>;
+  sing(score: Score, teacherStyleId: number, singerStyleId: number): Promise<Uint8Array>;
 
   // 情報取得
 

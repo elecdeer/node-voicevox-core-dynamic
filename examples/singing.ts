@@ -71,12 +71,14 @@ async function main() {
   const singingSpeaker = loadedSpeakers.find((speaker) =>
     speaker.styles.some((style) => style.type === "sing"),
   );
-  const freameDecodeSpeaker = loadedSpeakers.find((speaker) =>
+  const frameDecodeSpeaker = loadedSpeakers.find((speaker) =>
     speaker.styles.some((style) => style.type === "frame_decode"),
   );
 
-  if (!singingSpeaker) {
-    console.error("❌ No singing speaker found. Please load a model with singing capability.");
+  if (!singingSpeaker || !frameDecodeSpeaker) {
+    console.error(
+      "❌ No singing speaker or frame_decode speaker found. Please load a model with singing capability.",
+    );
     console.log("\n利用可能なスピーカー:");
     loadedSpeakers.forEach((speaker) => {
       console.log(`  ${speaker.name}:`);
@@ -95,7 +97,7 @@ async function main() {
 
   // 同じspeakerからsingとframe_decodeスタイルを取得
   const singStyle = singingSpeaker.styles.find((style) => style.type === "sing");
-  const frameDecodeStyle = singingSpeaker.styles.find((style) => style.type === "frame_decode");
+  const frameDecodeStyle = frameDecodeSpeaker.styles.find((style) => style.type === "frame_decode");
 
   if (!singStyle) {
     console.error("❌ No sing style found in the speaker.");
@@ -137,20 +139,20 @@ async function main() {
   console.log();
 
   // 方法1: sing()便利メソッドを使用
-  // console.log("🎵 Method 1: Using sing() convenience method...");
-  // const timeStart1 = performance.now();
-  // const wav1 = await client.sing(score, singStyle.id);
-  // const timeEnd1 = performance.now();
+  console.log("🎵 Method 1: Using sing() convenience method...");
+  const timeStart1 = performance.now();
+  const wav1 = await client.sing(score, singStyle.id, frameDecodeStyle.id);
+  const timeEnd1 = performance.now();
 
-  // console.log(`✅ Generated ${wav1.length} bytes of WAV data`);
-  // console.log(`⏱️  Synthesis time: ${(timeEnd1 - timeStart1).toFixed(2)} ms`);
+  console.log(`✅ Generated ${wav1.length} bytes of WAV data`);
+  console.log(`⏱️  Synthesis time: ${(timeEnd1 - timeStart1).toFixed(2)} ms`);
 
-  // const outputPath1 = `${process.env.OUTPUT_DIR}/singing-simple.wav`;
-  // await writeFile(outputPath1, wav1);
-  // console.log(`💾 Saved to ${outputPath1}\n`);
+  const outputPath1 = `${process.env.OUTPUT_DIR}/singing-simple.wav`;
+  await writeFile(outputPath1, wav1);
+  console.log(`💾 Saved to ${outputPath1}\n`);
 
   // 方法2: createSingFrameAudioQuery()とframeSynthesize()を個別に使用
-  // console.log("🎵 Method 2: Using createSingFrameAudioQuery() + frameSynthesize()...");
+  console.log("🎵 Method 2: Using createSingFrameAudioQuery() + frameSynthesize()...");
 
   const timeStart2 = performance.now();
 
@@ -196,7 +198,7 @@ async function main() {
   };
 
   const timeStart3 = performance.now();
-  const wav3 = await client.sing(scoreWithRest, singStyle.id);
+  const wav3 = await client.sing(scoreWithRest, singStyle.id, frameDecodeStyle.id);
   const timeEnd3 = performance.now();
 
   console.log(`✅ Generated ${wav3.length} bytes of WAV data`);

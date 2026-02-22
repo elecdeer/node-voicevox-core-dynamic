@@ -227,15 +227,15 @@ export async function createVoicevoxClient(
       return synthesizerFrameSynthesis(functions, synthesizer, frameAudioQuery, styleId);
     },
 
-    async sing(score: Score, styleId: number): Promise<Uint8Array> {
+    async sing(score: Score, teacherStyleId: number, singerStyleId: number): Promise<Uint8Array> {
       ensureNotDisposed();
       const frameAudioQuery = await synthesizerCreateSingFrameAudioQuery(
         functions,
         synthesizer,
         score,
-        styleId,
+        teacherStyleId,
       );
-      return synthesizerFrameSynthesis(functions, synthesizer, frameAudioQuery, styleId);
+      return synthesizerFrameSynthesis(functions, synthesizer, frameAudioQuery, singerStyleId);
     },
 
     // 情報取得

@@ -61,10 +61,7 @@ describe("Singing Voice Synthesis E2E Tests", () => {
 
       // sing タイプ（歌唱用）のスタイルを検索
       const singStyles = speakers.flatMap((speaker) =>
-        speaker.styles.filter(
-          (style) =>
-            style.type === "singing_teacher" || style.type === "sing",
-        ),
+        speaker.styles.filter((style) => style.type === "singing_teacher" || style.type === "sing"),
       );
 
       // frame_decode タイプ（合成用）のスタイルを検索
@@ -83,10 +80,7 @@ describe("Singing Voice Synthesis E2E Tests", () => {
       // sing タイプのスタイルを検索（singing_teacher または sing）
       const singStyle = speakers
         .flatMap((speaker) => speaker.styles)
-        .find(
-          (style) =>
-            style.type === "singing_teacher" || style.type === "sing",
-        );
+        .find((style) => style.type === "singing_teacher" || style.type === "sing");
 
       if (!singStyle) {
         console.warn("sing タイプのスタイルが見つかりませんでした");
@@ -114,10 +108,7 @@ describe("Singing Voice Synthesis E2E Tests", () => {
       // sing タイプのスタイルを検索
       const singStyle = speakers
         .flatMap((speaker) => speaker.styles)
-        .find(
-          (style) =>
-            style.type === "singing_teacher" || style.type === "sing",
-        );
+        .find((style) => style.type === "singing_teacher" || style.type === "sing");
 
       if (!singStyle) {
         console.warn("sing タイプのスタイルが見つかりませんでした");
@@ -181,10 +172,7 @@ describe("Singing Voice Synthesis E2E Tests", () => {
       // sing タイプのスタイル
       const singStyle = speakers
         .flatMap((speaker) => speaker.styles)
-        .find(
-          (style) =>
-            style.type === "singing_teacher" || style.type === "sing",
-        );
+        .find((style) => style.type === "singing_teacher" || style.type === "sing");
 
       if (!singStyle) {
         console.warn("sing タイプのスタイルが見つかりませんでした");
@@ -214,7 +202,7 @@ describe("Singing Voice Synthesis E2E Tests", () => {
       }
 
       const score = createSimpleScore();
-      const wav = await client.sing(score, singStyle.id);
+      const wav = await client.sing(score, singStyle.id, singStyle.id);
 
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
@@ -241,7 +229,7 @@ describe("Singing Voice Synthesis E2E Tests", () => {
       }
 
       const score = createScoreWithRest();
-      const wav = await client.sing(score, singStyle.id);
+      const wav = await client.sing(score, singStyle.id, singStyle.id);
 
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
@@ -250,22 +238,22 @@ describe("Singing Voice Synthesis E2E Tests", () => {
       expect(isMeaningful).toBe(true);
     });
 
-    it("合成オプションを指定して歌唱音声を生成できること", async () => {
+    it("教師スタイルと歌手スタイルを分けて指定できること", async () => {
       const speakers = client.getLoadedSpeakers();
-      const singStyle = speakers
+      const teacherStyle = speakers
         .flatMap((speaker) => speaker.styles)
-        .find((style) => style.type === "sing");
+        .find((style) => style.type === "singing_teacher");
+      const singerStyle = speakers
+        .flatMap((speaker) => speaker.styles)
+        .find((style) => style.type === "frame_decode");
 
-      if (!singStyle) {
-        console.warn("sing対応スタイルが見つかりませんでした");
+      if (!teacherStyle || !singerStyle) {
+        console.warn("必要なスタイルが見つかりませんでした");
         return;
       }
 
       const score = createSimpleScore();
-      const wav = await client.sing(score, singStyle.id, {
-        enableInterrogativeUpspeak: false,
-      });
-
+      const wav = await client.sing(score, teacherStyle.id, singerStyle.id);
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
 
@@ -277,15 +265,9 @@ describe("Singing Voice Synthesis E2E Tests", () => {
       const score = createSimpleScore();
       const invalidStyleId = 999999;
 
-      await expect(client.sing(score, invalidStyleId)).rejects.toThrow(VoicevoxError);
-    });
-  });
-
-  describe("v0.16.4未満での動作", () => {
-    it("関数が利用できない場合にわかりやすいエラーメッセージが表示されること", async () => {
-      // この確認は関数が利用できる環境では実行できないため、スキップ
-      // 実際のv0.16.3環境でテストする必要がある
-      expect(true).toBe(true);
+      await expect(client.sing(score, invalidStyleId, invalidStyleId)).rejects.toThrow(
+        VoicevoxError,
+      );
     });
   });
 });
