@@ -35,7 +35,13 @@ import type {
   CharacterMeta,
   CharacterMetaWithModelInfo,
 } from "./types.js";
-import type { AudioQuery, SynthesisOptions, TtsOptions, Score, FrameAudioQuery } from "../types/index.js";
+import type {
+  AudioQuery,
+  SynthesisOptions,
+  TtsOptions,
+  Score,
+  FrameAudioQuery,
+} from "../types/index.js";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -216,16 +222,12 @@ export async function createVoicevoxClient(
       return synthesizerCreateSingFrameAudioQuery(functions, synthesizer, score, styleId);
     },
 
-    async frameSynthesize(
-      frameAudioQuery: FrameAudioQuery,
-      styleId: number,
-      options?: SynthesisOptions,
-    ): Promise<Uint8Array> {
+    async frameSynthesize(frameAudioQuery: FrameAudioQuery, styleId: number): Promise<Uint8Array> {
       ensureNotDisposed();
-      return synthesizerFrameSynthesis(functions, synthesizer, frameAudioQuery, styleId, options);
+      return synthesizerFrameSynthesis(functions, synthesizer, frameAudioQuery, styleId);
     },
 
-    async sing(score: Score, styleId: number, options?: SynthesisOptions): Promise<Uint8Array> {
+    async sing(score: Score, styleId: number): Promise<Uint8Array> {
       ensureNotDisposed();
       const frameAudioQuery = await synthesizerCreateSingFrameAudioQuery(
         functions,
@@ -233,7 +235,7 @@ export async function createVoicevoxClient(
         score,
         styleId,
       );
-      return synthesizerFrameSynthesis(functions, synthesizer, frameAudioQuery, styleId, options);
+      return synthesizerFrameSynthesis(functions, synthesizer, frameAudioQuery, styleId);
     },
 
     // 情報取得

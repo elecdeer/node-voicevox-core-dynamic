@@ -305,7 +305,9 @@ export interface VoicevoxCoreFunctions {
   voicevox_mora_validate: KoffiFunc<(moraJson: string) => VoicevoxResultCode>;
   voicevox_score_validate?: KoffiFunc<(scoreJson: string) => VoicevoxResultCode>;
   voicevox_note_validate?: KoffiFunc<(noteJson: string) => VoicevoxResultCode>;
-  voicevox_frame_audio_query_validate?: KoffiFunc<(frameAudioQueryJson: string) => VoicevoxResultCode>;
+  voicevox_frame_audio_query_validate?: KoffiFunc<
+    (frameAudioQueryJson: string) => VoicevoxResultCode
+  >;
   voicevox_frame_phoneme_validate?: KoffiFunc<(framePhonemeJson: string) => VoicevoxResultCode>;
   voicevox_ensure_compatible?: KoffiFunc<
     (query1Json: string, query2Json: string) => VoicevoxResultCode
@@ -343,7 +345,6 @@ export interface VoicevoxCoreFunctions {
       synthesizer: SynthesizerHandle,
       frameAudioQueryJson: string,
       styleId: number,
-      options: { enable_interrogative_upspeak: boolean },
       outLength: [number],
       outWav: [OutWavDataHandle | null],
     ) => VoicevoxResultCode
@@ -527,7 +528,7 @@ export function declareFunctions(lib: IKoffiLib): VoicevoxCoreFunctions {
     ),
     voicevox_synthesizer_frame_synthesis: tryLoadFunc(
       lib,
-      "int32 voicevox_synthesizer_frame_synthesis(const VoicevoxSynthesizerPtr synthesizer, const char* frame_audio_query_json, uint32 style_id, VoicevoxSynthesisOptions options, _Out_ uintptr_t* output_wav_length, _Out_ uint8** output_wav)",
+      "int32 voicevox_synthesizer_frame_synthesis(const VoicevoxSynthesizerPtr synthesizer, const char* frame_audio_query_json, uint32 style_id, _Out_ uintptr_t* output_wav_length, _Out_ uint8** output_wav)",
     ),
 
     // ユーティリティ

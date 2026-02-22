@@ -34,9 +34,11 @@ describe("Singing Voice Synthesis E2E Tests", () => {
    */
   const createSimpleScore = (): Score => ({
     notes: [
-      { key: 60, frame_length: 10, lyric: "ド" }, // C4
-      { key: 62, frame_length: 10, lyric: "レ" }, // D4
-      { key: 64, frame_length: 10, lyric: "ミ" }, // E4
+      { key: null, frame_length: 15, lyric: "" }, // 最初は休符（必須）
+      { key: 60, frame_length: 45, lyric: "ド" }, // C4
+      { key: 62, frame_length: 45, lyric: "レ" }, // D4
+      { key: 64, frame_length: 45, lyric: "ミ" }, // E4
+      { key: null, frame_length: 15, lyric: "" }, // 最後も休符（推奨）
     ],
   });
 
@@ -45,38 +47,49 @@ describe("Singing Voice Synthesis E2E Tests", () => {
    */
   const createScoreWithRest = (): Score => ({
     notes: [
-      { key: 60, frame_length: 10, lyric: "ド" }, // C4
-      { key: null, frame_length: 5, lyric: "" }, // 休符
-      { key: 64, frame_length: 10, lyric: "ミ" }, // E4
+      { key: null, frame_length: 15, lyric: "" }, // 最初は休符（必須）
+      { key: 60, frame_length: 45, lyric: "ド" }, // C4
+      { key: null, frame_length: 15, lyric: "" }, // 途中の休符
+      { key: 64, frame_length: 45, lyric: "ミ" }, // E4
+      { key: null, frame_length: 15, lyric: "" }, // 最後も休符（推奨）
     ],
   });
 
   describe("歌唱対応スタイルの確認", () => {
     it("歌唱対応スタイルが利用可能であること", () => {
       const speakers = client.getLoadedSpeakers();
+
+      // sing タイプ（歌唱用）のスタイルを検索
       const singStyles = speakers.flatMap((speaker) =>
         speaker.styles.filter(
           (style) =>
-            style.type === "singing_teacher" || style.type === "frame_decode" || style.type === "sing",
+            style.type === "singing_teacher" || style.type === "sing",
         ),
       );
 
+      // frame_decode タイプ（合成用）のスタイルを検索
+      const frameDecodeStyles = speakers.flatMap((speaker) =>
+        speaker.styles.filter((style) => style.type === "frame_decode"),
+      );
+
       expect(singStyles.length).toBeGreaterThan(0);
+      expect(frameDecodeStyles.length).toBeGreaterThan(0);
     });
   });
 
   describe("createSingFrameAudioQuery", () => {
     it("楽譜からFrameAudioQueryを生成できること", async () => {
       const speakers = client.getLoadedSpeakers();
+      // sing タイプのスタイルを検索（singing_teacher または sing）
       const singStyle = speakers
         .flatMap((speaker) => speaker.styles)
         .find(
           (style) =>
-            style.type === "singing_teacher" || style.type === "frame_decode" || style.type === "sing",
+            style.type === "singing_teacher" || style.type === "sing",
         );
 
       if (!singStyle) {
-        console.warn("歌唱対応スタイルが見つかりませんでした");
+        console.warn("sing タイプのスタイルが見つかりませんでした");
         return;
       }
 
@@ -98,15 +111,16 @@ describe("Singing Voice Synthesis E2E Tests", () => {
 
     it("休符を含む楽譜からFrameAudioQueryを生成できること", async () => {
       const speakers = client.getLoadedSpeakers();
+      // sing タイプのスタイルを検索
       const singStyle = speakers
         .flatMap((speaker) => speaker.styles)
         .find(
           (style) =>
-            style.type === "singing_teacher" || style.type === "frame_decode" || style.type === "sing",
+            style.type === "singing_teacher" || style.type === "sing",
         );
 
       if (!singStyle) {
-        console.warn("歌唱対応スタイルが見つかりませんでした");
+        console.warn("sing タイプのスタイルが見つかりませんでした");
         return;
       }
 
@@ -130,18 +144,24 @@ describe("Singing Voice Synthesis E2E Tests", () => {
   describe("frameSynthesize", () => {
     it("FrameAudioQueryから歌唱音声を合成できること", async () => {
       const speakers = client.getLoadedSpeakers();
+      // sing タイプのスタイル（createSingFrameAudioQuery用）
       const singStyle = speakers
         .flatMap((speaker) => speaker.styles)
-        .find((style) => style.type === "frame_decode" || style.type === "sing");
+        .find((style) => style.type === "singing_teacher" || style.type === "sing");
 
-      if (!singStyle) {
-        console.warn("歌唱合成対応スタイルが見つかりませんでした");
+      // frame_decode タイプのスタイル（frameSynthesize用）
+      const frameDecodeStyle = speakers
+        .flatMap((speaker) => speaker.styles)
+        .find((style) => style.type === "frame_decode");
+
+      if (!singStyle || !frameDecodeStyle) {
+        console.warn("必要なスタイルが見つかりませんでした");
         return;
       }
 
       const score = createSimpleScore();
       const frameAudioQuery = await client.createSingFrameAudioQuery(score, singStyle.id);
-      const wav = await client.frameSynthesize(frameAudioQuery, singStyle.id);
+      const wav = await client.frameSynthesize(frameAudioQuery, frameDecodeStyle.id);
 
       expect(wav).toBeInstanceOf(Uint8Array);
       expect(wav.length).toBeGreaterThan(0);
@@ -158,15 +178,16 @@ describe("Singing Voice Synthesis E2E Tests", () => {
 
     it("無効なスタイルIDでエラーが発生すること", async () => {
       const speakers = client.getLoadedSpeakers();
+      // sing タイプのスタイル
       const singStyle = speakers
         .flatMap((speaker) => speaker.styles)
         .find(
           (style) =>
-            style.type === "singing_teacher" || style.type === "frame_decode" || style.type === "sing",
+            style.type === "singing_teacher" || style.type === "sing",
         );
 
       if (!singStyle) {
-        console.warn("歌唱対応スタイルが見つかりませんでした");
+        console.warn("sing タイプのスタイルが見つかりませんでした");
         return;
       }
 

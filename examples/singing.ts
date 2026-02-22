@@ -47,19 +47,37 @@ async function main() {
 
   // 音声モデルをロード
   console.log("📥 Loading voice model...");
-  await client.loadVoiceModelFromPath(`${process.env.VOICEVOX_MODELS_PATH}/0.vvm`);
+  const models = await client.peekModelFilesMeta(process.env.VOICEVOX_MODELS_PATH);
+  console.log(
+    `✅ Found ${models.length} model(s) in directory: ${process.env.VOICEVOX_MODELS_PATH}`,
+  );
+  console.log("  Available models:");
+  for (const model of models) {
+    console.log(
+      `  - ${model.name} (version: ${model.version}, speaker UUID: ${model.speaker_uuid}, model file: ${model.modelFilePath})`,
+    );
+    console.log("    Styles:");
+    for (const style of model.styles) {
+      console.log(`    - ${style.name} (type: ${style.type}, id: ${style.id})`);
+    }
+  }
+
+  await client.loadVoiceModelFromPath(`${process.env.VOICEVOX_MODELS_PATH}/s0.vvm`);
 
   const loadedSpeakers = client.getLoadedSpeakers();
   console.log("✅ Voice model loaded\n");
 
-  // 歌唱対応スタイルを探す
-  const singStyle = loadedSpeakers
-    .flatMap((speaker) => speaker.styles)
-    .find((style) => style.type === "sing");
+  // 歌唱対応スタイルを探す（sing タイプ）
+  const singingSpeaker = loadedSpeakers.find((speaker) =>
+    speaker.styles.some((style) => style.type === "sing"),
+  );
+  const freameDecodeSpeaker = loadedSpeakers.find((speaker) =>
+    speaker.styles.some((style) => style.type === "frame_decode"),
+  );
 
-  if (!singStyle) {
-    console.error("❌ No singing style found. Please load a model with singing capability.");
-    console.log("\n利用可能なスタイル:");
+  if (!singingSpeaker) {
+    console.error("❌ No singing speaker found. Please load a model with singing capability.");
+    console.log("\n利用可能なスピーカー:");
     loadedSpeakers.forEach((speaker) => {
       console.log(`  ${speaker.name}:`);
       speaker.styles.forEach((style) => {
@@ -69,19 +87,44 @@ async function main() {
     return;
   }
 
-  console.log(`🎨 Using singing style: ${singStyle.name} (ID: ${singStyle.id})\n`);
+  // デバッグ: singingSpeakerのスタイルを確認
+  console.log(`\n🔍 Debug: ${singingSpeaker.name}のスタイル:`);
+  singingSpeaker.styles.forEach((style) => {
+    console.log(`  - ${style.name} (type: ${style.type}, id: ${style.id})`);
+  });
+
+  // 同じspeakerからsingとframe_decodeスタイルを取得
+  const singStyle = singingSpeaker.styles.find((style) => style.type === "sing");
+  const frameDecodeStyle = singingSpeaker.styles.find((style) => style.type === "frame_decode");
+
+  if (!singStyle) {
+    console.error("❌ No sing style found in the speaker.");
+    return;
+  }
+
+  if (!frameDecodeStyle) {
+    console.error("❌ No frame_decode style found in the speaker.");
+    console.log(`\n${singingSpeaker.name}の利用可能なスタイル:`);
+    singingSpeaker.styles.forEach((style) => {
+      console.log(`  - ${style.name} (type: ${style.type}, id: ${style.id})`);
+    });
+    return;
+  }
+
+  console.log(`🎨 Using speaker: ${singingSpeaker.name}`);
+  console.log(`🎨 Using singing style (for query): ${singStyle.name} (ID: ${singStyle.id})`);
+  console.log(
+    `🎨 Using frame_decode style (for synthesis): ${frameDecodeStyle.name} (ID: ${frameDecodeStyle.id})\n`,
+  );
 
   // 楽譜を作成（ドレミファソラシド）
   const score: Score = {
     notes: [
-      { key: 60, frame_length: 15, lyric: "ド" }, // C4
-      { key: 62, frame_length: 15, lyric: "レ" }, // D4
-      { key: 64, frame_length: 15, lyric: "ミ" }, // E4
-      { key: 65, frame_length: 15, lyric: "フ" }, // F4
-      { key: 67, frame_length: 15, lyric: "ァ" }, // G4
-      { key: 69, frame_length: 15, lyric: "ラ" }, // A4
-      { key: 71, frame_length: 15, lyric: "シ" }, // B4
-      { key: 72, frame_length: 15, lyric: "ド" }, // C5
+      { key: null, frame_length: 15, lyric: "" }, // 最初は休符（必須）
+      { key: 60, frame_length: 45, lyric: "ド" }, // C4
+      { key: 62, frame_length: 45, lyric: "レ" }, // D4
+      { key: 64, frame_length: 45, lyric: "ミ" }, // E4
+      { key: null, frame_length: 15, lyric: "" }, // 最後も休符（推奨）
     ],
   };
 
@@ -94,20 +137,20 @@ async function main() {
   console.log();
 
   // 方法1: sing()便利メソッドを使用
-  console.log("🎵 Method 1: Using sing() convenience method...");
-  const timeStart1 = performance.now();
-  const wav1 = await client.sing(score, singStyle.id);
-  const timeEnd1 = performance.now();
+  // console.log("🎵 Method 1: Using sing() convenience method...");
+  // const timeStart1 = performance.now();
+  // const wav1 = await client.sing(score, singStyle.id);
+  // const timeEnd1 = performance.now();
 
-  console.log(`✅ Generated ${wav1.length} bytes of WAV data`);
-  console.log(`⏱️  Synthesis time: ${(timeEnd1 - timeStart1).toFixed(2)} ms`);
+  // console.log(`✅ Generated ${wav1.length} bytes of WAV data`);
+  // console.log(`⏱️  Synthesis time: ${(timeEnd1 - timeStart1).toFixed(2)} ms`);
 
-  const outputPath1 = `${process.env.OUTPUT_DIR}/singing-simple.wav`;
-  await writeFile(outputPath1, wav1);
-  console.log(`💾 Saved to ${outputPath1}\n`);
+  // const outputPath1 = `${process.env.OUTPUT_DIR}/singing-simple.wav`;
+  // await writeFile(outputPath1, wav1);
+  // console.log(`💾 Saved to ${outputPath1}\n`);
 
   // 方法2: createSingFrameAudioQuery()とframeSynthesize()を個別に使用
-  console.log("🎵 Method 2: Using createSingFrameAudioQuery() + frameSynthesize()...");
+  // console.log("🎵 Method 2: Using createSingFrameAudioQuery() + frameSynthesize()...");
 
   const timeStart2 = performance.now();
 
@@ -125,9 +168,9 @@ async function main() {
   // 必要に応じてFrameAudioQueryを編集可能
   // 例: frameAudioQuery.volumeScale = 1.5;
 
-  // 音声合成
+  // 音声合成（frame_decode スタイルを使用）
   console.log("  🎵 Synthesizing...");
-  const wav2 = await client.frameSynthesize(frameAudioQuery, singStyle.id);
+  const wav2 = await client.frameSynthesize(frameAudioQuery, frameDecodeStyle.id);
   const timeEnd2 = performance.now();
 
   console.log(`✅ Generated ${wav2.length} bytes of WAV data`);
@@ -142,13 +185,13 @@ async function main() {
 
   const scoreWithRest: Score = {
     notes: [
-      { key: 60, frame_length: 15, lyric: "ド" }, // C4
-      { key: 62, frame_length: 15, lyric: "レ" }, // D4
-      { key: null, frame_length: 10, lyric: "" }, // 休符
-      { key: 64, frame_length: 15, lyric: "ミ" }, // E4
-      { key: 65, frame_length: 15, lyric: "フ" }, // F4
-      { key: null, frame_length: 10, lyric: "" }, // 休符
-      { key: 67, frame_length: 15, lyric: "ァ" }, // G4
+      { key: null, frame_length: 15, lyric: "" }, // 最初は休符（必須）
+      { key: 60, frame_length: 45, lyric: "ド" }, // C4
+      { key: 62, frame_length: 45, lyric: "レ" }, // D4
+      { key: null, frame_length: 15, lyric: "" }, // 休符
+      { key: 64, frame_length: 45, lyric: "ミ" }, // E4
+      { key: 65, frame_length: 45, lyric: "ファ" }, // F4
+      { key: null, frame_length: 15, lyric: "" }, // 最後も休符（推奨）
     ],
   };
 

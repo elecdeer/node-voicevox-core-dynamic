@@ -696,20 +696,12 @@ export async function frameSynthesis(
   synthesizer: SynthesizerHandle,
   frameAudioQuery: FrameAudioQuery,
   styleId: number,
-  options?: SynthesisOptions,
 ): Promise<Uint8Array> {
   if (!functions.voicevox_synthesizer_frame_synthesis) {
     throw new Error(
       "voicevox_synthesizer_frame_synthesis is not available. This function requires voicevox_core v0.16.4 or later.",
     );
   }
-
-  const defaultOptions = functions.voicevox_make_default_synthesis_options();
-
-  const synthesisOptions = {
-    enable_interrogative_upspeak:
-      options?.enableInterrogativeUpspeak ?? defaultOptions.enable_interrogative_upspeak,
-  };
 
   const frameAudioQueryJson = JSON.stringify(frameAudioQuery);
   const outLength: [number] = [0];
@@ -720,7 +712,6 @@ export async function frameSynthesis(
     synthesizer,
     frameAudioQueryJson,
     styleId,
-    synthesisOptions,
     outLength,
     outWav,
   );
