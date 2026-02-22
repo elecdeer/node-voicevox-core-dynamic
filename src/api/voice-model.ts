@@ -7,7 +7,6 @@ import { promisifyKoffiAsync } from "../ffi/functions.js";
 import { VoicevoxResultCode } from "../types/enums.js";
 import type { VoiceModelFileHandle } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
-import { freeJson } from "../utils/memory.js";
 import { uuidBytesToString } from "../utils/uuid.js";
 import koffi from "koffi";
 
@@ -72,13 +71,16 @@ export function getVoiceModelMetasJson(
   model: VoiceModelFileHandle,
 ): string {
   const jsonPtr = functions.voicevox_voice_model_file_create_metas_json(model);
+  if (jsonPtr == null) {
+    throw new Error("Failed to create JSON: null pointer returned");
+  }
 
   // void*から文字列を取得する
   // lenに-1を指定することで、null終端文字列として自動的に長さを検出
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
 
   // C側で確保されたメモリを解放
-  freeJson(functions.lib, jsonPtr);
+  functions.voicevox_json_free(jsonPtr);
 
   return jsonStr;
 }

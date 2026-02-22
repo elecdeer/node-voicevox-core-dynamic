@@ -11,7 +11,6 @@ import type {
   OutJsonStringHandle,
 } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
-import { freeJson } from "../utils/memory.js";
 import koffi from "koffi";
 
 /**
@@ -96,12 +95,15 @@ export function getOnnxruntimeSupportedDevicesJson(
   }
 
   const jsonPtr = outJson[0];
+  if (jsonPtr == null) {
+    throw new Error("Failed to create JSON: null pointer returned");
+  }
 
   // void*から文字列を取得する
   // lenに-1を指定することで、null終端文字列として自動的に長さを検出
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
 
-  freeJson(functions.lib, jsonPtr);
+  functions.voicevox_json_free(jsonPtr);
 
   return jsonStr;
 }

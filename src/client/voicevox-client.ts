@@ -2,8 +2,6 @@
  * 高レベルAPIクライアント
  */
 
-import koffi from "koffi";
-import { declareFunctions } from "../ffi/functions.js";
 import { loadOnnxruntime, getVersion as getOnnxruntimeVersion } from "../api/onnxruntime.js";
 import { createOpenJtalk, deleteOpenJtalk } from "../api/open-jtalk.js";
 import {
@@ -44,6 +42,7 @@ import type {
 } from "../types/index.js";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { loadLibrary } from "../ffi/library.js";
 
 /**
  * Voicevoxクライアントを作成する
@@ -74,8 +73,7 @@ export async function createVoicevoxClient(
   options: VoicevoxClientOptions,
 ): Promise<VoicevoxClient> {
   // ライブラリをロード
-  const lib = koffi.load(options.corePath);
-  const functions = declareFunctions(lib);
+  const functions = loadLibrary(options.corePath);
 
   // ONNX Runtimeをロード
   const onnxruntime = await loadOnnxruntime(functions, {

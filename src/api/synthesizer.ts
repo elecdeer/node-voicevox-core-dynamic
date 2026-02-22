@@ -20,7 +20,6 @@ import type {
   FrameAudioQuery,
 } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
-import { freeJson, freeWav } from "../utils/memory.js";
 import { uuidStringToBytes } from "../utils/uuid.js";
 import koffi from "koffi";
 
@@ -178,7 +177,7 @@ export function getSynthesizerMetasJson(
   // lenに-1を指定することで、null終端文字列として自動的に長さを検出
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
 
-  freeJson(functions.lib, jsonPtr);
+  functions.voicevox_json_free(jsonPtr);
 
   return jsonStr;
 }
@@ -214,12 +213,15 @@ export async function createAudioQuery(
   }
 
   const jsonPtr = outJson[0];
+  if (jsonPtr == null) {
+    throw new Error("Failed to create JSON: null pointer returned");
+  }
 
   // void*から文字列を取得する
   // lenに-1を指定することで、null終端文字列として自動的に長さを検出
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
 
-  freeJson(functions.lib, jsonPtr);
+  functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery;
 }
@@ -255,8 +257,12 @@ export async function createAudioQueryFromKana(
   }
 
   const jsonPtr = outJson[0];
+  if (jsonPtr == null) {
+    throw new Error("Failed to create JSON: null pointer returned");
+  }
+
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
-  freeJson(functions.lib, jsonPtr);
+  functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery;
 }
@@ -292,8 +298,12 @@ export async function createAccentPhrases(
   }
 
   const jsonPtr = outJson[0];
+  if (jsonPtr == null) {
+    throw new Error("Failed to create JSON: null pointer returned");
+  }
+
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
-  freeJson(functions.lib, jsonPtr);
+  functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
 }
@@ -329,8 +339,12 @@ export async function createAccentPhrasesFromKana(
   }
 
   const jsonPtr = outJson[0];
+  if (jsonPtr == null) {
+    throw new Error("Failed to create JSON: null pointer returned");
+  }
+
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
-  freeJson(functions.lib, jsonPtr);
+  functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
 }
@@ -361,8 +375,12 @@ export async function createAudioQueryFromAccentPhrases(
   }
 
   const jsonPtr = outJson[0];
+  if (jsonPtr == null) {
+    throw new Error("Failed to create JSON: null pointer returned");
+  }
+
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
-  freeJson(functions.lib, jsonPtr);
+  functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery;
 }
@@ -412,6 +430,10 @@ export async function synthesis(
   }
 
   const wavPtr = outWav[0];
+  if (wavPtr == null) {
+    throw new Error("Failed to synthesize: null pointer returned");
+  }
+
   const length = outLength[0];
 
   // WAVデータをUint8Arrayにコピー
@@ -419,7 +441,7 @@ export async function synthesis(
   const srcBuffer = koffi.decode(wavPtr, koffi.array("uint8", length));
   wavData.set(srcBuffer);
 
-  freeWav(functions.lib, wavPtr);
+  functions.voicevox_wav_free(wavPtr);
 
   return wavData;
 }
@@ -468,6 +490,10 @@ export async function tts(
   }
 
   const wavPtr = outWav[0];
+  if (wavPtr == null) {
+    throw new Error("Failed to synthesize: null pointer returned");
+  }
+
   const length = outLength[0];
 
   // WAVデータをUint8Arrayにコピー
@@ -475,7 +501,7 @@ export async function tts(
   const srcBuffer = koffi.decode(wavPtr, koffi.array("uint8", length));
   wavData.set(srcBuffer);
 
-  freeWav(functions.lib, wavPtr);
+  functions.voicevox_wav_free(wavPtr);
 
   return wavData;
 }
@@ -524,6 +550,10 @@ export async function ttsFromKana(
   }
 
   const wavPtr = outWav[0];
+  if (wavPtr == null) {
+    throw new Error("Failed to synthesize: null pointer returned");
+  }
+
   const length = outLength[0];
 
   // WAVデータをUint8Arrayにコピー
@@ -531,7 +561,7 @@ export async function ttsFromKana(
   const srcBuffer = koffi.decode(wavPtr, koffi.array("uint8", length));
   wavData.set(srcBuffer);
 
-  freeWav(functions.lib, wavPtr);
+  functions.voicevox_wav_free(wavPtr);
 
   return wavData;
 }
@@ -575,8 +605,12 @@ export async function createSingFrameAudioQuery(
   }
 
   const jsonPtr = outJson[0];
+  if (jsonPtr == null) {
+    throw new Error("Failed to create JSON: null pointer returned");
+  }
+
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
-  freeJson(functions.lib, jsonPtr);
+  functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as FrameAudioQuery;
 }
@@ -624,8 +658,12 @@ export async function createSingFrameF0(
   }
 
   const jsonPtr = outJson[0];
+  if (jsonPtr == null) {
+    throw new Error("Failed to create JSON: null pointer returned");
+  }
+
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
-  freeJson(functions.lib, jsonPtr);
+  functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as number[];
 }
@@ -673,8 +711,12 @@ export async function createSingFrameVolume(
   }
 
   const jsonPtr = outJson[0];
+  if (jsonPtr == null) {
+    throw new Error("Failed to create JSON: null pointer returned");
+  }
+
   const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
-  freeJson(functions.lib, jsonPtr);
+  functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as number[];
 }
@@ -722,6 +764,10 @@ export async function frameSynthesis(
   }
 
   const wavPtr = outWav[0];
+  if (wavPtr == null) {
+    throw new Error("Failed to synthesize: null pointer returned");
+  }
+
   const length = outLength[0];
 
   // WAVデータをUint8Arrayにコピー
@@ -729,7 +775,7 @@ export async function frameSynthesis(
   const srcBuffer = koffi.decode(wavPtr, koffi.array("uint8", length));
   wavData.set(srcBuffer);
 
-  freeWav(functions.lib, wavPtr);
+  functions.voicevox_wav_free(wavPtr);
 
   return wavData;
 }
