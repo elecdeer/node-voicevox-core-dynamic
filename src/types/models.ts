@@ -123,3 +123,19 @@ export interface FrameAudioQuery {
   /** 音声データをステレオ出力するか */
   outputStereo: boolean;
 }
+
+/**
+ * ユーザー辞書の単語
+ */
+export interface UserDictWord {
+  /** 表記 */
+  surface: string;
+  /** 読み（カタカナ） */
+  pronunciation: string;
+  /** アクセント型（整数） */
+  accentType: number;
+  /** 単語の種類 */
+  wordType: number;
+  /** 優先度（0-10） */
+  priority: number;
+}

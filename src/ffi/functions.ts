@@ -262,6 +262,30 @@ export interface VoicevoxCoreFunctions {
   voicevox_audio_query_create_from_accent_phrases: KoffiFunc<
     (accentPhrasesJson: string, outJson: [OutJsonStringHandle | null]) => VoicevoxResultCode
   >;
+  voicevox_synthesizer_replace_mora_data: KoffiFunc<
+    (
+      synthesizer: SynthesizerHandle,
+      accentPhrasesJson: string,
+      styleId: number,
+      outJson: [OutJsonStringHandle | null],
+    ) => VoicevoxResultCode
+  >;
+  voicevox_synthesizer_replace_phoneme_length: KoffiFunc<
+    (
+      synthesizer: SynthesizerHandle,
+      accentPhrasesJson: string,
+      styleId: number,
+      outJson: [OutJsonStringHandle | null],
+    ) => VoicevoxResultCode
+  >;
+  voicevox_synthesizer_replace_mora_pitch: KoffiFunc<
+    (
+      synthesizer: SynthesizerHandle,
+      accentPhrasesJson: string,
+      styleId: number,
+      outJson: [OutJsonStringHandle | null],
+    ) => VoicevoxResultCode
+  >;
 
   // 音声合成
   voicevox_make_default_synthesis_options: KoffiFunc<
@@ -349,6 +373,60 @@ export interface VoicevoxCoreFunctions {
       outWav: [OutWavDataHandle | null],
     ) => VoicevoxResultCode
   >;
+
+  // ユーザー辞書
+  voicevox_user_dict_word_make: KoffiFunc<
+    (surface: string, pronunciation: string, accentType: number) => {
+      surface: string;
+      pronunciation: string;
+      accent_type: number;
+      word_type: number;
+      priority: number;
+    }
+  >;
+  voicevox_user_dict_new: KoffiFunc<() => UserDictHandle>;
+  voicevox_user_dict_load: KoffiFunc<
+    (userDict: UserDictHandle, dictPath: string) => VoicevoxResultCode
+  >;
+  voicevox_user_dict_add_word: KoffiFunc<
+    (
+      userDict: UserDictHandle,
+      word: {
+        surface: string;
+        pronunciation: string;
+        accent_type: number;
+        word_type: number;
+        priority: number;
+      },
+      outUuid: Uint8Array,
+    ) => VoicevoxResultCode
+  >;
+  voicevox_user_dict_update_word: KoffiFunc<
+    (
+      userDict: UserDictHandle,
+      uuid: Uint8Array,
+      word: {
+        surface: string;
+        pronunciation: string;
+        accent_type: number;
+        word_type: number;
+        priority: number;
+      },
+    ) => VoicevoxResultCode
+  >;
+  voicevox_user_dict_remove_word: KoffiFunc<
+    (userDict: UserDictHandle, uuid: Uint8Array) => VoicevoxResultCode
+  >;
+  voicevox_user_dict_to_json: KoffiFunc<
+    (userDict: UserDictHandle, outJson: [OutJsonStringHandle | null]) => VoicevoxResultCode
+  >;
+  voicevox_user_dict_import: KoffiFunc<
+    (userDict: UserDictHandle, otherDict: UserDictHandle) => VoicevoxResultCode
+  >;
+  voicevox_user_dict_save: KoffiFunc<
+    (userDict: UserDictHandle, path: string) => VoicevoxResultCode
+  >;
+  voicevox_user_dict_delete: KoffiFunc<(userDict: UserDictHandle) => void>;
 
   // ユーティリティ
   voicevox_get_version: KoffiFunc<() => string>;
@@ -464,6 +542,15 @@ export function declareFunctions(lib: IKoffiLib): VoicevoxCoreFunctions {
     voicevox_audio_query_create_from_accent_phrases: lib.func(
       "int32 voicevox_audio_query_create_from_accent_phrases(const char* accent_phrases_json, _Out_ void** output_audio_query_json)",
     ),
+    voicevox_synthesizer_replace_mora_data: lib.func(
+      "int32 voicevox_synthesizer_replace_mora_data(const VoicevoxSynthesizerPtr synthesizer, const char* accent_phrases_json, uint32 style_id, _Out_ void** output_accent_phrases_json)",
+    ),
+    voicevox_synthesizer_replace_phoneme_length: lib.func(
+      "int32 voicevox_synthesizer_replace_phoneme_length(const VoicevoxSynthesizerPtr synthesizer, const char* accent_phrases_json, uint32 style_id, _Out_ void** output_accent_phrases_json)",
+    ),
+    voicevox_synthesizer_replace_mora_pitch: lib.func(
+      "int32 voicevox_synthesizer_replace_mora_pitch(const VoicevoxSynthesizerPtr synthesizer, const char* accent_phrases_json, uint32 style_id, _Out_ void** output_accent_phrases_json)",
+    ),
 
     // 音声合成
     voicevox_make_default_synthesis_options: lib.func(
@@ -529,6 +616,36 @@ export function declareFunctions(lib: IKoffiLib): VoicevoxCoreFunctions {
     voicevox_synthesizer_frame_synthesis: tryLoadFunc(
       lib,
       "int32 voicevox_synthesizer_frame_synthesis(const VoicevoxSynthesizerPtr synthesizer, const char* frame_audio_query_json, uint32 style_id, _Out_ uintptr_t* output_wav_length, _Out_ uint8** output_wav)",
+    ),
+
+    // ユーザー辞書
+    voicevox_user_dict_word_make: lib.func(
+      "VoicevoxUserDictWord voicevox_user_dict_word_make(const char* surface, const char* pronunciation, uintptr_t accent_type)",
+    ),
+    voicevox_user_dict_new: lib.func("VoicevoxUserDictPtr voicevox_user_dict_new(void)"),
+    voicevox_user_dict_load: lib.func(
+      "int32 voicevox_user_dict_load(const VoicevoxUserDictPtr user_dict, const char* dict_path)",
+    ),
+    voicevox_user_dict_add_word: lib.func(
+      "int32 voicevox_user_dict_add_word(const VoicevoxUserDictPtr user_dict, const VoicevoxUserDictWord* word, _Out_ uint8* output_word_uuid)",
+    ),
+    voicevox_user_dict_update_word: lib.func(
+      "int32 voicevox_user_dict_update_word(const VoicevoxUserDictPtr user_dict, const uint8* word_uuid, const VoicevoxUserDictWord* word)",
+    ),
+    voicevox_user_dict_remove_word: lib.func(
+      "int32 voicevox_user_dict_remove_word(const VoicevoxUserDictPtr user_dict, const uint8* word_uuid)",
+    ),
+    voicevox_user_dict_to_json: lib.func(
+      "int32 voicevox_user_dict_to_json(const VoicevoxUserDictPtr user_dict, _Out_ char** output_json)",
+    ),
+    voicevox_user_dict_import: lib.func(
+      "int32 voicevox_user_dict_import(const VoicevoxUserDictPtr user_dict, const VoicevoxUserDictPtr other_dict)",
+    ),
+    voicevox_user_dict_save: lib.func(
+      "int32 voicevox_user_dict_save(const VoicevoxUserDictPtr user_dict, const char* path)",
+    ),
+    voicevox_user_dict_delete: lib.func(
+      "void voicevox_user_dict_delete(VoicevoxUserDictPtr user_dict)",
     ),
 
     // ユーティリティ

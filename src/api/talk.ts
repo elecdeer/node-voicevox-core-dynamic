@@ -390,3 +390,129 @@ export async function ttsFromKana(
 
   return wavData;
 }
+
+/**
+ * AccentPhraseの配列のモーラデータを生成し直す
+ *
+ * @param functions - VOICEVOX CORE FFI関数
+ * @param synthesizer - シンセサイザハンドル
+ * @param accentPhrases - アクセント句の配列
+ * @param styleId - スタイルID
+ * @returns Promise<AccentPhrase[]>
+ * @throws {VoicevoxError} 生成に失敗した場合
+ */
+export async function replaceMoraData(
+  functions: VoicevoxCoreFunctions,
+  synthesizer: SynthesizerHandle,
+  accentPhrases: AudioQuery["accent_phrases"],
+  styleId: number,
+): Promise<AudioQuery["accent_phrases"]> {
+  const accentPhrasesJson = JSON.stringify(accentPhrases);
+  const outJson: [OutJsonStringHandle | null] = [null];
+  const resultCode = await promisifyKoffiAsync(
+    functions.voicevox_synthesizer_replace_mora_data,
+    synthesizer,
+    accentPhrasesJson,
+    styleId,
+    outJson,
+  );
+
+  if (resultCode !== VoicevoxResultCode.Ok) {
+    const message = functions.voicevox_error_result_to_message(resultCode);
+    throw new VoicevoxError(resultCode, message);
+  }
+
+  const jsonPtr = outJson[0];
+  if (jsonPtr == null) {
+    throw new Error("Failed to replace mora data: null pointer returned");
+  }
+
+  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  functions.voicevox_json_free(jsonPtr);
+
+  return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
+}
+
+/**
+ * AccentPhraseの配列の音素長を生成し直す
+ *
+ * @param functions - VOICEVOX CORE FFI関数
+ * @param synthesizer - シンセサイザハンドル
+ * @param accentPhrases - アクセント句の配列
+ * @param styleId - スタイルID
+ * @returns Promise<AccentPhrase[]>
+ * @throws {VoicevoxError} 生成に失敗した場合
+ */
+export async function replacePhonemeLength(
+  functions: VoicevoxCoreFunctions,
+  synthesizer: SynthesizerHandle,
+  accentPhrases: AudioQuery["accent_phrases"],
+  styleId: number,
+): Promise<AudioQuery["accent_phrases"]> {
+  const accentPhrasesJson = JSON.stringify(accentPhrases);
+  const outJson: [OutJsonStringHandle | null] = [null];
+  const resultCode = await promisifyKoffiAsync(
+    functions.voicevox_synthesizer_replace_phoneme_length,
+    synthesizer,
+    accentPhrasesJson,
+    styleId,
+    outJson,
+  );
+
+  if (resultCode !== VoicevoxResultCode.Ok) {
+    const message = functions.voicevox_error_result_to_message(resultCode);
+    throw new VoicevoxError(resultCode, message);
+  }
+
+  const jsonPtr = outJson[0];
+  if (jsonPtr == null) {
+    throw new Error("Failed to replace phoneme length: null pointer returned");
+  }
+
+  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  functions.voicevox_json_free(jsonPtr);
+
+  return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
+}
+
+/**
+ * AccentPhraseの配列の音高を生成し直す
+ *
+ * @param functions - VOICEVOX CORE FFI関数
+ * @param synthesizer - シンセサイザハンドル
+ * @param accentPhrases - アクセント句の配列
+ * @param styleId - スタイルID
+ * @returns Promise<AccentPhrase[]>
+ * @throws {VoicevoxError} 生成に失敗した場合
+ */
+export async function replaceMoraPitch(
+  functions: VoicevoxCoreFunctions,
+  synthesizer: SynthesizerHandle,
+  accentPhrases: AudioQuery["accent_phrases"],
+  styleId: number,
+): Promise<AudioQuery["accent_phrases"]> {
+  const accentPhrasesJson = JSON.stringify(accentPhrases);
+  const outJson: [OutJsonStringHandle | null] = [null];
+  const resultCode = await promisifyKoffiAsync(
+    functions.voicevox_synthesizer_replace_mora_pitch,
+    synthesizer,
+    accentPhrasesJson,
+    styleId,
+    outJson,
+  );
+
+  if (resultCode !== VoicevoxResultCode.Ok) {
+    const message = functions.voicevox_error_result_to_message(resultCode);
+    throw new VoicevoxError(resultCode, message);
+  }
+
+  const jsonPtr = outJson[0];
+  if (jsonPtr == null) {
+    throw new Error("Failed to replace mora pitch: null pointer returned");
+  }
+
+  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  functions.voicevox_json_free(jsonPtr);
+
+  return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
+}
