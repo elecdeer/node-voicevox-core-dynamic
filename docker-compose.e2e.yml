@@ -1,5 +1,6 @@
 services:
   e2e-test:
+    platform: ${DOCKER_DEFAULT_PLATFORM:-linux/arm64}
     build:
       context: .
       dockerfile: Dockerfile.e2e

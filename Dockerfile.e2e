@@ -1,8 +1,8 @@
 # ステージ1: voicevox_engineからライブラリを取得
-FROM --platform=linux/arm64 voicevox/voicevox_engine:cpu-latest AS voicevox
+FROM voicevox/voicevox_engine:cpu-latest AS voicevox
 
 # ステージ2: Node.js環境でテスト実行
-FROM --platform=linux/arm64 node:24
+FROM node:24
 
 WORKDIR /app
 
