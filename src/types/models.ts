@@ -65,3 +65,61 @@ export interface AudioQuery {
   /** [読み取り専用] AquesTalk風記法 */
   kana?: string;
 }
+
+/**
+ * Note
+ *
+ * 歌唱音声合成の音符
+ */
+export interface Note {
+  /** MIDIノート番号 (休符の場合はnull) */
+  key: number | null;
+  /** フレーム長 */
+  frame_length: number;
+  /** 歌詞 (休符の場合は空文字) */
+  lyric: string;
+}
+
+/**
+ * Score
+ *
+ * 歌唱音声合成の楽譜
+ */
+export interface Score {
+  /** 音符の配列 */
+  notes: Note[];
+}
+
+/**
+ * FramePhoneme
+ *
+ * フレームごとの音素
+ */
+export interface FramePhoneme {
+  /** 音素 */
+  phoneme: string;
+  /** フレーム長 */
+  frame_length: number;
+}
+
+/**
+ * FrameAudioQuery
+ *
+ * 歌唱音声合成用のクエリ
+ *
+ * camelCaseとsnake_caseが混在しているのは、APIの仕様に合わせているためです。
+ */
+export interface FrameAudioQuery {
+  /** フレームごとの基本周波数 */
+  f0: number[];
+  /** フレームごとの音量 */
+  volume: number[];
+  /** フレームごとの音素 */
+  phonemes: FramePhoneme[];
+  /** 全体の音量 */
+  volumeScale: number;
+  /** 音声データの出力サンプリングレート */
+  outputSamplingRate: number;
+  /** 音声データをステレオ出力するか */
+  outputStereo: boolean;
+}

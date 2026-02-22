@@ -10,7 +10,7 @@ import type {
   SynthesisOptions,
   TtsOptions,
 } from "../types/index.js";
-import type { AudioQuery } from "../types/models.js";
+import type { AudioQuery, Score, FrameAudioQuery } from "../types/models.js";
 import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
 
 /**
@@ -201,6 +201,43 @@ export interface VoicevoxClient extends Disposable {
     styleId: number,
     options?: SynthesisOptions,
   ): Promise<Uint8Array>;
+
+  // 歌唱音声合成
+
+  /**
+   * 楽譜からFrameAudioQueryを生成する
+   *
+   * @param score - 楽譜
+   * @param styleId - スタイルID
+   * @returns FrameAudioQuery
+   */
+  createSingFrameAudioQuery(score: Score, styleId: number): Promise<FrameAudioQuery>;
+
+  /**
+   * FrameAudioQueryから歌唱音声を合成する
+   *
+   * @param frameAudioQuery - FrameAudioQuery
+   * @param styleId - スタイルID
+   * @param options - 合成オプション
+   * @returns WAV形式の音声データ
+   */
+  frameSynthesize(
+    frameAudioQuery: FrameAudioQuery,
+    styleId: number,
+    options?: SynthesisOptions,
+  ): Promise<Uint8Array>;
+
+  /**
+   * 楽譜から歌唱音声を生成する（便利メソッド）
+   *
+   * createSingFrameAudioQueryとframeSynthesizeを組み合わせた便利メソッドです。
+   *
+   * @param score - 楽譜
+   * @param styleId - スタイルID
+   * @param options - 合成オプション
+   * @returns WAV形式の音声データ
+   */
+  sing(score: Score, styleId: number, options?: SynthesisOptions): Promise<Uint8Array>;
 
   // 情報取得
 

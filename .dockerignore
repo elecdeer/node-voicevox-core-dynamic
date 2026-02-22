@@ -4,3 +4,5 @@ output
 *.log
 .env
 .env.local
+
+voicevox

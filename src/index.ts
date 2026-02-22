@@ -22,6 +22,11 @@ export type {
   AudioQuery,
   AccentPhrase,
   Mora,
+  // 歌唱音声合成型
+  Score,
+  Note,
+  FrameAudioQuery,
+  FramePhoneme,
 } from "./types/index.js";
 
 // 列挙型
@@ -65,6 +70,11 @@ export {
   synthesis,
   tts,
   ttsFromKana,
+  // 歌唱音声合成
+  createSingFrameAudioQuery,
+  createSingFrameF0,
+  createSingFrameVolume,
+  frameSynthesis,
 } from "./api/index.js";
 
 // 高レベルAPI

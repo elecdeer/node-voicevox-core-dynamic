@@ -303,6 +303,51 @@ export interface VoicevoxCoreFunctions {
   voicevox_audio_query_validate: KoffiFunc<(audioQueryJson: string) => VoicevoxResultCode>;
   voicevox_accent_phrase_validate: KoffiFunc<(accentPhraseJson: string) => VoicevoxResultCode>;
   voicevox_mora_validate: KoffiFunc<(moraJson: string) => VoicevoxResultCode>;
+  voicevox_score_validate?: KoffiFunc<(scoreJson: string) => VoicevoxResultCode>;
+  voicevox_note_validate?: KoffiFunc<(noteJson: string) => VoicevoxResultCode>;
+  voicevox_frame_audio_query_validate?: KoffiFunc<(frameAudioQueryJson: string) => VoicevoxResultCode>;
+  voicevox_frame_phoneme_validate?: KoffiFunc<(framePhonemeJson: string) => VoicevoxResultCode>;
+  voicevox_ensure_compatible?: KoffiFunc<
+    (query1Json: string, query2Json: string) => VoicevoxResultCode
+  >;
+
+  // 歌唱音声合成
+  voicevox_synthesizer_create_sing_frame_audio_query?: KoffiFunc<
+    (
+      synthesizer: SynthesizerHandle,
+      scoreJson: string,
+      styleId: number,
+      outJson: [OutJsonStringHandle | null],
+    ) => VoicevoxResultCode
+  >;
+  voicevox_synthesizer_create_sing_frame_f0?: KoffiFunc<
+    (
+      synthesizer: SynthesizerHandle,
+      scoreJson: string,
+      frameAudioQueryJson: string,
+      styleId: number,
+      outJson: [OutJsonStringHandle | null],
+    ) => VoicevoxResultCode
+  >;
+  voicevox_synthesizer_create_sing_frame_volume?: KoffiFunc<
+    (
+      synthesizer: SynthesizerHandle,
+      scoreJson: string,
+      frameAudioQueryJson: string,
+      styleId: number,
+      outJson: [OutJsonStringHandle | null],
+    ) => VoicevoxResultCode
+  >;
+  voicevox_synthesizer_frame_synthesis?: KoffiFunc<
+    (
+      synthesizer: SynthesizerHandle,
+      frameAudioQueryJson: string,
+      styleId: number,
+      options: { enable_interrogative_upspeak: boolean },
+      outLength: [number],
+      outWav: [OutWavDataHandle | null],
+    ) => VoicevoxResultCode
+  >;
 
   // ユーティリティ
   voicevox_get_version: KoffiFunc<() => string>;
@@ -448,6 +493,42 @@ export function declareFunctions(lib: IKoffiLib): VoicevoxCoreFunctions {
       "int32 voicevox_accent_phrase_validate(const char* accent_phrase_json)",
     ),
     voicevox_mora_validate: tryLoadFunc(lib, "int32 voicevox_mora_validate(const char* mora_json)"),
+    voicevox_score_validate: tryLoadFunc(
+      lib,
+      "int32 voicevox_score_validate(const char* score_json)",
+    ),
+    voicevox_note_validate: tryLoadFunc(lib, "int32 voicevox_note_validate(const char* note_json)"),
+    voicevox_frame_audio_query_validate: tryLoadFunc(
+      lib,
+      "int32 voicevox_frame_audio_query_validate(const char* frame_audio_query_json)",
+    ),
+    voicevox_frame_phoneme_validate: tryLoadFunc(
+      lib,
+      "int32 voicevox_frame_phoneme_validate(const char* frame_phoneme_json)",
+    ),
+    voicevox_ensure_compatible: tryLoadFunc(
+      lib,
+      "int32 voicevox_ensure_compatible(const char* query1_json, const char* query2_json)",
+    ),
+
+    // 歌唱音声合成
+    // Note: これらの関数はv0.16.4以降で追加されたため、古いバージョンでは利用できません。
+    voicevox_synthesizer_create_sing_frame_audio_query: tryLoadFunc(
+      lib,
+      "int32 voicevox_synthesizer_create_sing_frame_audio_query(const VoicevoxSynthesizerPtr synthesizer, const char* score_json, uint32 style_id, _Out_ void** output_frame_audio_query_json)",
+    ),
+    voicevox_synthesizer_create_sing_frame_f0: tryLoadFunc(
+      lib,
+      "int32 voicevox_synthesizer_create_sing_frame_f0(const VoicevoxSynthesizerPtr synthesizer, const char* score_json, const char* frame_audio_query_json, uint32 style_id, _Out_ void** output_f0_json)",
+    ),
+    voicevox_synthesizer_create_sing_frame_volume: tryLoadFunc(
+      lib,
+      "int32 voicevox_synthesizer_create_sing_frame_volume(const VoicevoxSynthesizerPtr synthesizer, const char* score_json, const char* frame_audio_query_json, uint32 style_id, _Out_ void** output_volume_json)",
+    ),
+    voicevox_synthesizer_frame_synthesis: tryLoadFunc(
+      lib,
+      "int32 voicevox_synthesizer_frame_synthesis(const VoicevoxSynthesizerPtr synthesizer, const char* frame_audio_query_json, uint32 style_id, VoicevoxSynthesisOptions options, _Out_ uintptr_t* output_wav_length, _Out_ uint8** output_wav)",
+    ),
 
     // ユーティリティ
     voicevox_get_version: lib.func("const char* voicevox_get_version(void)"),

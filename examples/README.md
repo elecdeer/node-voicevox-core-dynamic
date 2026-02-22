@@ -77,6 +77,29 @@ pnpm tsx --env-file=.env examples/multiple-models.ts
 - ロード済みスピーカーの確認（`client.getLoadedSpeakers`）
 - 複数モデルでの音声合成
 
+### 5. singing.ts - 歌唱音声合成
+
+歌唱音声合成機能を使用する例です（v0.16.4以降）。
+楽譜（Score）から歌声を生成できます。
+
+```bash
+pnpm tsx --env-file=.env examples/singing.ts
+```
+
+**学べること:**
+
+- 歌唱対応スタイルの確認
+- 楽譜（Score）の作成
+- FrameAudioQueryの生成（`client.createSingFrameAudioQuery`）
+- 歌唱音声の合成（`client.frameSynthesize`）
+- 便利メソッド（`client.sing`）の使用
+- 休符を含む楽譜の処理
+
+**注意:**
+
+- 歌唱音声合成には、歌唱対応モデル（`singing_teacher`、`frame_decode`、または`sing`スタイルを持つモデル）が必要です
+- voicevox_core v0.16.4以降が必要です
+
 ## ディレクトリ構造の例
 
 サンプルコードを実行するには、以下のようなディレクトリ構造を準備してください：

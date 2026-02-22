@@ -76,6 +76,16 @@ export const VoicevoxResultCode = {
   InvalidUuidError: 25,
   /** 無効なMora */
   InvalidMoraError: 30,
+  /** 無効なScore */
+  InvalidScoreError: 31,
+  /** 無効なNote */
+  InvalidNoteError: 32,
+  /** 無効なFrameAudioQuery */
+  InvalidFrameAudioQueryError: 33,
+  /** 無効なFramePhoneme */
+  InvalidFramePhonemeError: 34,
+  /** 互換性のないクエリ */
+  IncompatibleQueriesError: 35,
 } as const;
 
 /**

@@ -107,6 +107,36 @@ if (isGpuMode(synthesizer)) {
 }
 ```
 
+### Singing Voice Synthesis (v0.16.4+)
+
+```typescript
+import { createSingFrameAudioQuery, frameSynthesis } from "node-voicevox-core-dynamic";
+import type { Score } from "node-voicevox-core-dynamic";
+
+// Create a score (musical notation)
+const score: Score = {
+  notes: [
+    { key: 60, frame_length: 15, lyric: "ド" }, // C4
+    { key: 62, frame_length: 15, lyric: "レ" }, // D4
+    { key: 64, frame_length: 15, lyric: "ミ" }, // E4
+    { key: null, frame_length: 10, lyric: "" }, // Rest
+  ],
+};
+
+// Method 1: Using convenience method
+const wav = await client.sing(score, styleId);
+
+// Method 2: Step by step
+const frameAudioQuery = await createSingFrameAudioQuery(synthesizer, score, styleId);
+// Optionally modify frameAudioQuery parameters
+const wav = await frameSynthesis(synthesizer, frameAudioQuery, styleId);
+```
+
+**Requirements:**
+
+- voicevox_core v0.16.4 or later
+- Voice model with singing capability (`singing_teacher`, `frame_decode`, or `sing` style)
+
 ## API Reference
 
 ### Types
@@ -136,6 +166,10 @@ if (isGpuMode(synthesizer)) {
 - `AudioQuery` - Audio query for synthesis
 - `AccentPhrase` - Accent phrase structure
 - `Mora` - Mora (phonetic unit)
+- `Score` - Musical score for singing voice synthesis
+- `Note` - Musical note with key, duration, and lyric
+- `FrameAudioQuery` - Frame-based audio query for singing
+- `FramePhoneme` - Phoneme with frame duration
 
 ### Functions
 
@@ -173,6 +207,13 @@ if (isGpuMode(synthesizer)) {
 - `createAudioQuery(synthesizer, text, styleId)` - **async** Create AudioQuery from text
 - `synthesis(synthesizer, audioQuery, styleId, options?)` - **async** Synthesize from AudioQuery
 - `tts(synthesizer, text, styleId, options?)` - **async** Direct text-to-speech
+
+#### Singing Voice Synthesis (v0.16.4+)
+
+- `createSingFrameAudioQuery(synthesizer, score, styleId)` - **async** Create FrameAudioQuery from score
+- `createSingFrameF0(synthesizer, score, frameAudioQuery, styleId)` - **async** Generate frame-wise F0
+- `createSingFrameVolume(synthesizer, score, frameAudioQuery, styleId)` - **async** Generate frame-wise volume
+- `frameSynthesis(synthesizer, frameAudioQuery, styleId, options?)` - **async** Synthesize singing voice
 
 ## Environment Variables
 

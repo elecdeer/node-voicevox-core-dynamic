@@ -51,3 +51,30 @@ export const AudioQuerySchema = v.object({
   prePhonemeLength: v.number(),
   postPhonemeLength: v.number(),
 });
+
+/**
+ * 歌唱音声合成用のスキーマ
+ */
+export const NoteSchema = v.object({
+  key: v.nullable(v.number()),
+  frame_length: v.number(),
+  lyric: v.string(),
+});
+
+export const ScoreSchema = v.object({
+  notes: v.array(NoteSchema),
+});
+
+export const FramePhonemeSchema = v.object({
+  phoneme: v.string(),
+  frame_length: v.number(),
+});
+
+export const FrameAudioQuerySchema = v.object({
+  f0: v.array(v.number()),
+  volume: v.array(v.number()),
+  phonemes: v.array(FramePhonemeSchema),
+  volumeScale: v.number(),
+  outputSamplingRate: v.number(),
+  outputStereo: v.boolean(),
+});
