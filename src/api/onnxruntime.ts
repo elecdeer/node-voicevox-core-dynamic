@@ -107,13 +107,3 @@ export function getOnnxruntimeSupportedDevicesJson(
 
   return jsonStr;
 }
-
-/**
- * バージョン情報を取得
- *
- * @param functions - VOICEVOX CORE FFI関数
- * @returns バージョン文字列
- */
-export function getVersion(functions: VoicevoxCoreFunctions): string {
-  return functions.voicevox_get_version();
-}

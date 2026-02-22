@@ -2,25 +2,25 @@
  * 高レベルAPIクライアント
  */
 
-import { loadOnnxruntime, getVersion as getOnnxruntimeVersion } from "../api/onnxruntime.js";
+import { loadOnnxruntime } from "../api/onnxruntime.js";
+import { getVersion } from "../api/voicevox.js";
 import { createOpenJtalk, deleteOpenJtalk } from "../api/open-jtalk.js";
 import {
-  createSynthesizer,
-  deleteSynthesizer,
-  loadVoiceModel,
-  isGpuMode as synthesizerIsGpuMode,
-  getSynthesizerMetasJson,
-  createAudioQuery as synthesizerCreateAudioQuery,
-  createAudioQueryFromKana as synthesizerCreateAudioQueryFromKana,
-  createAccentPhrases as synthesizerCreateAccentPhrases,
-  createAccentPhrasesFromKana as synthesizerCreateAccentPhrasesFromKana,
-  createAudioQueryFromAccentPhrases as synthesizerCreateAudioQueryFromAccentPhrases,
-  synthesis as synthesizerSynthesis,
-  tts as synthesizerTts,
-  ttsFromKana as synthesizerTtsFromKana,
   createSingFrameAudioQuery as synthesizerCreateSingFrameAudioQuery,
   frameSynthesis as synthesizerFrameSynthesis,
-} from "../api/synthesizer.js";
+} from "../api/song.js";
+import { ttsFromKana as synthesizerTtsFromKana } from "../api/talk.js";
+import { tts as synthesizerTts } from "../api/talk.js";
+import { synthesis as synthesizerSynthesis } from "../api/talk.js";
+import { createAudioQueryFromAccentPhrases as synthesizerCreateAudioQueryFromAccentPhrases } from "../api/talk.js";
+import { createAccentPhrasesFromKana as synthesizerCreateAccentPhrasesFromKana } from "../api/talk.js";
+import { createAccentPhrases as synthesizerCreateAccentPhrases } from "../api/talk.js";
+import { createAudioQueryFromKana as synthesizerCreateAudioQueryFromKana } from "../api/talk.js";
+import { createAudioQuery as synthesizerCreateAudioQuery } from "../api/talk.js";
+import { getSynthesizerMetasJson } from "../api/voice-model.js";
+import { isGpuMode as synthesizerIsGpuMode } from "../api/voicevox.js";
+import { deleteSynthesizer } from "../api/voicevox.js";
+import { createSynthesizer } from "../api/voicevox.js";
 import {
   openVoiceModelFile,
   getVoiceModelId,
@@ -43,6 +43,7 @@ import type {
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { loadLibrary } from "../ffi/library.js";
+import { loadVoiceModel } from "../index.js";
 
 /**
  * Voicevoxクライアントを作成する
@@ -246,7 +247,7 @@ export async function createVoicevoxClient(
 
     getVersion(): string {
       ensureNotDisposed();
-      return getOnnxruntimeVersion(functions);
+      return getVersion(functions);
     },
 
     get isGpuMode(): boolean {
