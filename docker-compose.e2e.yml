@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.e2e
+      args:
+        VOICEVOX_CORE_VERSION: ${VOICEVOX_CORE_VERSION:-0.16.4}
     volumes:
       # 出力ディレクトリをマウント（テスト結果のWAVファイル確認用）
       - ./output:/app/output

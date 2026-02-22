@@ -18,8 +18,9 @@ describe("Singing Voice Synthesis E2E Tests", () => {
       openJtalkDictDir: paths.openJtalkDictDir,
     });
 
-    // 歌唱対応モデルをロード
+    // 通常の音声合成モデルと歌唱対応モデルをロード
     await client.loadVoiceModelFromPath(`${paths.modelsPath}/0.vvm`);
+    await client.loadVoiceModelFromPath(`${paths.modelsPath}/s0.vvm`);
   });
 
   afterAll(() => {

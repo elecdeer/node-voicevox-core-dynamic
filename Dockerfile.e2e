@@ -1,16 +1,39 @@
-# ステージ1: voicevox_engineからライブラリを取得
-FROM voicevox/voicevox_engine:cpu-latest AS voicevox
+# ステージ1: voicevox_coreをダウンロード
+FROM debian:bookworm-slim AS downloader
+
+ARG TARGETARCH
+ARG VOICEVOX_CORE_VERSION=0.16.4
+
+RUN apt-get update && apt-get install -y curl
+
+# アーキテクチャに応じてダウンローダーを取得
+RUN ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "arm64" || echo "x64") && \
+    curl -sL "https://github.com/VOICEVOX/voicevox_core/releases/download/${VOICEVOX_CORE_VERSION}/download-linux-${ARCH}" \
+    -o /tmp/downloader && \
+    chmod +x /tmp/downloader
+
+# voicevox_coreをダウンロード（利用規約に自動同意）
+RUN ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "arm64" || echo "x64") && \
+    yes y | /tmp/downloader \
+      --c-api-version ${VOICEVOX_CORE_VERSION} \
+      --cpu-arch ${ARCH} \
+      --os linux \
+      --devices cpu \
+      -o /opt/voicevox
 
 # ステージ2: Node.js環境でテスト実行
 FROM node:24
 
 WORKDIR /app
 
-# voicevoxライブラリをコピー
-COPY --from=voicevox /opt/voicevox_engine/libvoicevox_core.so /opt/voicevox/lib/
-COPY --from=voicevox /opt/voicevox_engine/libvoicevox_onnxruntime.so /opt/voicevox/lib/
-COPY --from=voicevox /opt/voicevox_engine/engine_internal/pyopenjtalk/open_jtalk_dic_utf_8-1.11 /opt/voicevox/dict/
-COPY --from=voicevox /opt/voicevox_engine/model /opt/voicevox/models/
+# ダウンロードしたファイルをコピー
+COPY --from=downloader /opt/voicevox/c_api/lib/ /opt/voicevox/lib/
+COPY --from=downloader /opt/voicevox/onnxruntime/lib/ /opt/voicevox/lib/
+COPY --from=downloader /opt/voicevox/dict/open_jtalk_dic_utf_8-1.11 /opt/voicevox/dict
+COPY --from=downloader /opt/voicevox/models/vvms /opt/voicevox/models
+
+# ONNX Runtimeのシンボリックリンクを作成
+RUN ln -s /opt/voicevox/lib/libvoicevox_onnxruntime.so.* /opt/voicevox/lib/libvoicevox_onnxruntime.so
 
 # 環境変数設定
 ENV VOICEVOX_CORE_C_API_PATH=/opt/voicevox/lib/libvoicevox_core.so
