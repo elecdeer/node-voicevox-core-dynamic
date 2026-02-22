@@ -1,6 +1,7 @@
 services:
   e2e-test:
     platform: ${DOCKER_DEFAULT_PLATFORM:-linux/arm64}
+    image: node-voicevox-core-dynamic-e2e:latest
     build:
       context: .
       dockerfile: Dockerfile.e2e
