@@ -3,7 +3,7 @@
  */
 
 import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
-import { promisifyKoffiAsync } from "../ffi/functions.js";
+import { allocOutPointer, readOutPointer, readCString, NULL_POINTER } from "../ffi/native.js";
 import { VoicevoxResultCode } from "../types/enums.js";
 import type {
   LoadOnnxruntimeOptions,
@@ -11,7 +11,6 @@ import type {
   OutJsonStringHandle,
 } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
-import koffi from "koffi";
 
 /**
  * ONNX Runtimeをロードして初期化する
@@ -27,26 +26,18 @@ export async function loadOnnxruntime(
   functions: VoicevoxCoreFunctions,
   options?: LoadOnnxruntimeOptions,
 ): Promise<OnnxruntimeHandle> {
-  const defaultOptions = functions.voicevox_make_default_load_onnxruntime_options();
+  const filename = options?.filename ?? functions.voicevox_make_default_load_onnxruntime_options();
 
-  const loadOptions = {
-    filename: options?.filename ?? defaultOptions.filename,
-  };
-
-  const outOnnxruntime: [OnnxruntimeHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_onnxruntime_load_once,
-    loadOptions,
-    outOnnxruntime,
-  );
+  const outOnnxruntime = allocOutPointer();
+  const resultCode = await functions.voicevox_onnxruntime_load_once.async(filename, outOnnxruntime);
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode, message);
   }
 
-  const handle = outOnnxruntime[0];
-  if (handle == null) {
+  const handle = readOutPointer(outOnnxruntime);
+  if (handle === NULL_POINTER) {
     throw new Error("Failed to load ONNX Runtime: null handle returned");
   }
 
@@ -64,11 +55,11 @@ export async function loadOnnxruntime(
 export function getOnnxruntime(functions: VoicevoxCoreFunctions): OnnxruntimeHandle | null {
   const onnxruntime = functions.voicevox_onnxruntime_get();
 
-  if (onnxruntime == null) {
+  if (onnxruntime === NULL_POINTER) {
     return null;
   }
 
-  return onnxruntime as OnnxruntimeHandle;
+  return onnxruntime;
 }
 
 /**
@@ -83,7 +74,7 @@ export function getOnnxruntimeSupportedDevicesJson(
   functions: VoicevoxCoreFunctions,
   onnxruntime: OnnxruntimeHandle,
 ): string {
-  const outJson: [OutJsonStringHandle | null] = [null];
+  const outJson = allocOutPointer();
   const resultCode = functions.voicevox_onnxruntime_create_supported_devices_json(
     onnxruntime,
     outJson,
@@ -94,15 +85,12 @@ export function getOnnxruntimeSupportedDevicesJson(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to create JSON: null pointer returned");
   }
 
-  // void*から文字列を取得する
-  // lenに-1を指定することで、null終端文字列として自動的に長さを検出
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
-
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return jsonStr;

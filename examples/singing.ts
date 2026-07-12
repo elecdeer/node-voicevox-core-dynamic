@@ -5,7 +5,7 @@
  * v0.16.4以降で追加された歌唱音声合成機能を使用します。
  *
  * 使用例:
- * pnpm tsx examples/singing.ts
+ * NODE_OPTIONS="--experimental-ffi" pnpm tsx examples/singing.ts
  */
 
 import { createVoicevoxClient } from "../src/index.js";

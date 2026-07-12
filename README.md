@@ -1,14 +1,15 @@
 # node-voicevox-core-dynamic
 
-Node.js binding for [voicevox_core](https://github.com/VOICEVOX/voicevox_core) using [koffi](https://github.com/Koromix/koffi).
+Node.js binding for [voicevox_core](https://github.com/VOICEVOX/voicevox_core) using the built-in [node:ffi](https://nodejs.org/api/ffi.html) module — no native npm dependencies.
 
 ## Features
 
 - 🚀 Function-based API (no classes)
-- ⚡ Async/await support for non-blocking operations
+- ⚡ Async/await support for non-blocking operations (heavy FFI calls run on a worker thread)
 - 🔒 Type-safe with TypeScript strict mode
 - 🎯 Brand types for opaque handles
 - 📦 Dynamic library loading with configurable paths
+- 🧩 Zero runtime dependencies (uses the experimental `node:ffi` built-in module)
 
 ## Installation
 
@@ -19,6 +20,24 @@ npm install node-voicevox-core-dynamic
 ```
 
 ## Prerequisites
+
+### Node.js >= 26.1.0 with `--experimental-ffi`
+
+This package uses the experimental [node:ffi](https://nodejs.org/api/ffi.html) module,
+which was added in Node.js v26.1.0 and is gated behind the `--experimental-ffi` flag:
+
+```bash
+node --experimental-ffi app.js
+# or
+NODE_OPTIONS="--experimental-ffi" node app.js
+```
+
+> ⚠️ `node:ffi` is an experimental Node.js API (Stability: 1) and might change at any time.
+
+Note: async API calls are dispatched to a single worker thread per loaded library,
+so concurrent async calls are serialized.
+
+### voicevox_core
 
 You need to download voicevox_core library separately:
 
@@ -251,4 +270,4 @@ MIT
 ## Credits
 
 - [VOICEVOX CORE](https://github.com/VOICEVOX/voicevox_core) - The core library
-- [koffi](https://github.com/Koromix/koffi) - Fast FFI for Node.js
+- [node:ffi](https://nodejs.org/api/ffi.html) - Node.js built-in Foreign Function Interface

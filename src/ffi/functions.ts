@@ -1,11 +1,9 @@
 /**
  * C API関数宣言
  *
- * voicevox_core C APIの関数をkoffiで宣言する
+ * voicevox_core C APIの関数をnode:ffiで宣言し、型付きラッパーを生成する
  */
 
-import type { IKoffiLib, KoffiFunc } from "koffi";
-import koffi from "koffi";
 import type {
   OnnxruntimeHandle,
   OpenJtalkHandle,
@@ -16,132 +14,17 @@ import type {
   OutWavDataHandle,
   VoicevoxResultCode,
 } from "../types/index.js";
-
-// ========================================
-// 非同期関数ヘルパー
-// ========================================
-
-/**
- * Koffi関数を非同期呼び出し可能にするPromiseラッパー
- *
- * @param func - Koffi関数（.asyncメソッドを持つ）
- * @param args - 関数に渡す引数
- * @returns 関数の実行結果を返すPromise
- */
-export function promisifyKoffiAsync<TFunc extends (...args: any[]) => any>(
-  func: KoffiFunc<TFunc>,
-  ...args: Parameters<TFunc>
-): Promise<ReturnType<TFunc>> {
-  return new Promise<ReturnType<TFunc>>((resolve, reject) => {
-    func.async(
-      ...args,
-      (err: Error | null, res: ReturnType<TFunc>) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(res);
-        }
-      },
-    );
-  });
-}
-
-/**
- * 関数のロードを試み、失敗した場合はundefinedを返す
- *
- * @param lib - Koffiライブラリ
- * @param signature - 関数シグネチャ
- * @returns ロードした関数、または失敗時はundefined
- */
-function tryLoadFunc(lib: IKoffiLib, signature: string): any {
-  try {
-    return lib.func(signature);
-  } catch {
-    return undefined;
-  }
-}
-
-// ========================================
-// 不透明型（Opaque Types）
-// ========================================
-
-export const OpenJtalkRcOpaque = koffi.opaque("OpenJtalkRc");
-export const VoicevoxOnnxruntimeOpaque = koffi.opaque("VoicevoxOnnxruntime");
-export const VoicevoxSynthesizerOpaque = koffi.opaque("VoicevoxSynthesizer");
-export const VoicevoxUserDictOpaque = koffi.opaque("VoicevoxUserDict");
-export const VoicevoxVoiceModelFileOpaque = koffi.opaque("VoicevoxVoiceModelFile");
-
-// ========================================
-// ポインタ型（Pointer Types）
-// ========================================
-
-export const OpenJtalkRcPtr = koffi.pointer("OpenJtalkRcPtr", OpenJtalkRcOpaque);
-export const VoicevoxOnnxruntimePtr = koffi.pointer(
-  "VoicevoxOnnxruntimePtr",
-  VoicevoxOnnxruntimeOpaque,
-);
-export const VoicevoxSynthesizerPtr = koffi.pointer(
-  "VoicevoxSynthesizerPtr",
-  VoicevoxSynthesizerOpaque,
-);
-export const VoicevoxUserDictPtr = koffi.pointer("VoicevoxUserDictPtr", VoicevoxUserDictOpaque);
-export const VoicevoxVoiceModelFilePtr = koffi.pointer(
-  "VoicevoxVoiceModelFilePtr",
-  VoicevoxVoiceModelFileOpaque,
-);
-
-// ========================================
-// 構造体（Structs）
-// ========================================
-
-/**
- * ONNX Runtimeロードオプション構造体
- */
-export const VoicevoxLoadOnnxruntimeOptionsStruct = koffi.struct("VoicevoxLoadOnnxruntimeOptions", {
-  filename: "const char*",
-});
-
-/**
- * 初期化オプション構造体
- */
-export const VoicevoxInitializeOptionsStruct = koffi.struct("VoicevoxInitializeOptions", {
-  acceleration_mode: "int32",
-  cpu_num_threads: "uint16",
-});
-
-/**
- * 音声合成オプション構造体
- */
-export const VoicevoxSynthesisOptionsStruct = koffi.struct("VoicevoxSynthesisOptions", {
-  enable_interrogative_upspeak: "bool",
-});
-
-/**
- * TTSオプション構造体
- */
-export const VoicevoxTtsOptionsStruct = koffi.struct("VoicevoxTtsOptions", {
-  enable_interrogative_upspeak: "bool",
-});
-
-/**
- * ユーザー辞書単語構造体
- */
-export const VoicevoxUserDictWordStruct = koffi.struct("VoicevoxUserDictWord", {
-  surface: "const char*",
-  pronunciation: "const char*",
-  accent_type: "uintptr_t",
-  word_type: "int32",
-  priority: "uint32",
-});
-
-// ========================================
-// 型定義
-// ========================================
-
-/**
- * VoicevoxVoiceModelId - UUID (16バイト配列)
- */
-export const VoicevoxVoiceModelIdType = koffi.array("uint8", 16);
+import { AsyncDispatcher, type NativeSignature } from "./async-dispatcher.js";
+import {
+  getNodeFfi,
+  readCString,
+  NULL_POINTER,
+  type FfiType,
+  type FunctionSignature,
+  type NativeLibrary,
+  type NodeFfiModule,
+} from "./native.js";
+import { FUNCTION_SIGNATURES, type FunctionName } from "./signatures.js";
 
 /**
  * VoicevoxStyleId - スタイルID
@@ -149,511 +32,444 @@ export const VoicevoxVoiceModelIdType = koffi.array("uint8", 16);
 export type VoicevoxStyleId = number; // uint32_t
 
 /**
+ * 型付きFFI関数
+ *
+ * そのまま呼ぶと同期実行（呼び出し中はイベントループをブロックする）。
+ * `.async`はWorkerスレッドで実行し、イベントループをブロックしない。
+ */
+export type FfiFunction<TArgs extends readonly unknown[], TReturn> = ((
+  ...args: TArgs
+) => TReturn) & {
+  /** Workerスレッドで実行する非同期呼び出し */
+  async: (...args: TArgs) => Promise<TReturn>;
+};
+
+/**
  * C API関数群
+ *
+ * `_Out_`ポインタ引数には`allocOutPointer()`で確保したBufferを渡し、
+ * 呼び出し後に`readOutPointer()`で値を読み取る（native.tsを参照）。
  */
 export interface VoicevoxCoreFunctions {
   // ライブラリインスタンス
-  lib: IKoffiLib;
+  lib: NativeLibrary;
 
   // ONNX Runtime関連
-  voicevox_get_onnxruntime_lib_versioned_filename: KoffiFunc<() => string>;
-  voicevox_get_onnxruntime_lib_unversioned_filename: KoffiFunc<() => string>;
-  voicevox_make_default_load_onnxruntime_options: KoffiFunc<() => { filename: string }>;
-  voicevox_onnxruntime_get: KoffiFunc<() => OnnxruntimeHandle>;
-  voicevox_onnxruntime_load_once: KoffiFunc<
-    (
-      options: { filename: string },
-      outOnnxruntime: [OnnxruntimeHandle | null],
-    ) => VoicevoxResultCode
+  voicevox_get_onnxruntime_lib_versioned_filename: FfiFunction<[], string>;
+  voicevox_get_onnxruntime_lib_unversioned_filename: FfiFunction<[], string>;
+  /** デフォルトの`VoicevoxLoadOnnxruntimeOptions`のfilename（構造体をloweringして文字列を返す） */
+  voicevox_make_default_load_onnxruntime_options: FfiFunction<[], string>;
+  voicevox_onnxruntime_get: FfiFunction<[], OnnxruntimeHandle>;
+  /** `VoicevoxLoadOnnxruntimeOptions`はfilename文字列としてloweringされている */
+  voicevox_onnxruntime_load_once: FfiFunction<
+    [filename: string, outOnnxruntime: Buffer],
+    VoicevoxResultCode
   >;
-  voicevox_onnxruntime_create_supported_devices_json: KoffiFunc<
-    (onnxruntime: OnnxruntimeHandle, outJson: [OutJsonStringHandle | null]) => VoicevoxResultCode
+  voicevox_onnxruntime_create_supported_devices_json: FfiFunction<
+    [onnxruntime: OnnxruntimeHandle, outJson: Buffer],
+    VoicevoxResultCode
   >;
 
   // Open JTalk関連
-  voicevox_open_jtalk_rc_new: KoffiFunc<
-    (dictDir: string, outOpenJtalk: [OpenJtalkHandle | null]) => VoicevoxResultCode
+  voicevox_open_jtalk_rc_new: FfiFunction<
+    [dictDir: string, outOpenJtalk: Buffer],
+    VoicevoxResultCode
   >;
-  voicevox_open_jtalk_rc_use_user_dict: KoffiFunc<
-    (openJtalk: OpenJtalkHandle, userDict: UserDictHandle) => VoicevoxResultCode
+  voicevox_open_jtalk_rc_use_user_dict: FfiFunction<
+    [openJtalk: OpenJtalkHandle, userDict: UserDictHandle],
+    VoicevoxResultCode
   >;
-  voicevox_open_jtalk_rc_analyze: KoffiFunc<
-    (
-      openJtalk: OpenJtalkHandle,
-      text: string,
-      outJson: [OutJsonStringHandle | null],
-    ) => VoicevoxResultCode
+  voicevox_open_jtalk_rc_analyze: FfiFunction<
+    [openJtalk: OpenJtalkHandle, text: string, outJson: Buffer],
+    VoicevoxResultCode
   >;
-  voicevox_open_jtalk_rc_delete: KoffiFunc<(openJtalk: OpenJtalkHandle) => void>;
+  voicevox_open_jtalk_rc_delete: FfiFunction<[openJtalk: OpenJtalkHandle], void>;
 
   // 音声モデル関連
-  voicevox_voice_model_file_open: KoffiFunc<
-    (path: string, outModel: [VoiceModelFileHandle | null]) => VoicevoxResultCode
+  voicevox_voice_model_file_open: FfiFunction<[path: string, outModel: Buffer], VoicevoxResultCode>;
+  voicevox_voice_model_file_id: FfiFunction<[model: VoiceModelFileHandle, outId: Uint8Array], void>;
+  voicevox_voice_model_file_create_metas_json: FfiFunction<
+    [model: VoiceModelFileHandle],
+    OutJsonStringHandle
   >;
-  voicevox_voice_model_file_id: KoffiFunc<(model: VoiceModelFileHandle, outId: Uint8Array) => void>;
-  voicevox_voice_model_file_create_metas_json: KoffiFunc<
-    (model: VoiceModelFileHandle) => OutJsonStringHandle
-  >;
-  voicevox_voice_model_file_delete: KoffiFunc<(model: VoiceModelFileHandle) => void>;
+  voicevox_voice_model_file_delete: FfiFunction<[model: VoiceModelFileHandle], void>;
 
   // シンセサイザ関連
-  voicevox_make_default_initialize_options: KoffiFunc<
-    () => { acceleration_mode: number; cpu_num_threads: number }
-  >;
-  voicevox_synthesizer_new: KoffiFunc<
-    (
+  /** デフォルトの`VoicevoxInitializeOptions`（u64にパックされた構造体。unpackInitializeOptionsで展開する） */
+  voicevox_make_default_initialize_options: FfiFunction<[], bigint>;
+  /** `VoicevoxInitializeOptions`はpackInitializeOptionsでu64にパックして渡す */
+  voicevox_synthesizer_new: FfiFunction<
+    [
       onnxruntime: OnnxruntimeHandle,
       openJtalk: OpenJtalkHandle,
-      options: { acceleration_mode: number; cpu_num_threads: number },
-      outSynthesizer: [SynthesizerHandle | null],
-    ) => VoicevoxResultCode
+      packedOptions: bigint,
+      outSynthesizer: Buffer,
+    ],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_delete: KoffiFunc<(synthesizer: SynthesizerHandle) => void>;
-  voicevox_synthesizer_load_voice_model: KoffiFunc<
-    (synthesizer: SynthesizerHandle, model: VoiceModelFileHandle) => VoicevoxResultCode
+  voicevox_synthesizer_delete: FfiFunction<[synthesizer: SynthesizerHandle], void>;
+  voicevox_synthesizer_load_voice_model: FfiFunction<
+    [synthesizer: SynthesizerHandle, model: VoiceModelFileHandle],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_unload_voice_model: KoffiFunc<
-    (synthesizer: SynthesizerHandle, modelId: Uint8Array) => VoicevoxResultCode
+  voicevox_synthesizer_unload_voice_model: FfiFunction<
+    [synthesizer: SynthesizerHandle, modelId: Uint8Array],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_get_onnxruntime: KoffiFunc<
-    (synthesizer: SynthesizerHandle) => OnnxruntimeHandle
+  voicevox_synthesizer_get_onnxruntime: FfiFunction<
+    [synthesizer: SynthesizerHandle],
+    OnnxruntimeHandle
   >;
-  voicevox_synthesizer_is_gpu_mode: KoffiFunc<(synthesizer: SynthesizerHandle) => boolean>;
-  voicevox_synthesizer_is_loaded_voice_model: KoffiFunc<
-    (synthesizer: SynthesizerHandle, modelId: Uint8Array) => boolean
+  voicevox_synthesizer_is_gpu_mode: FfiFunction<[synthesizer: SynthesizerHandle], boolean>;
+  voicevox_synthesizer_is_loaded_voice_model: FfiFunction<
+    [synthesizer: SynthesizerHandle, modelId: Uint8Array],
+    boolean
   >;
-  voicevox_synthesizer_create_metas_json: KoffiFunc<
-    (synthesizer: SynthesizerHandle) => OutJsonStringHandle
+  voicevox_synthesizer_create_metas_json: FfiFunction<
+    [synthesizer: SynthesizerHandle],
+    OutJsonStringHandle
   >;
 
   // AudioQuery/AccentPhrase生成
-  voicevox_synthesizer_create_audio_query: KoffiFunc<
-    (
-      synthesizer: SynthesizerHandle,
-      text: string,
-      styleId: number,
-      outJson: [OutJsonStringHandle | null],
-    ) => VoicevoxResultCode
+  voicevox_synthesizer_create_audio_query: FfiFunction<
+    [synthesizer: SynthesizerHandle, text: string, styleId: number, outJson: Buffer],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_create_audio_query_from_kana: KoffiFunc<
-    (
-      synthesizer: SynthesizerHandle,
-      kana: string,
-      styleId: number,
-      outJson: [OutJsonStringHandle | null],
-    ) => VoicevoxResultCode
+  voicevox_synthesizer_create_audio_query_from_kana: FfiFunction<
+    [synthesizer: SynthesizerHandle, kana: string, styleId: number, outJson: Buffer],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_create_accent_phrases: KoffiFunc<
-    (
-      synthesizer: SynthesizerHandle,
-      text: string,
-      styleId: number,
-      outJson: [OutJsonStringHandle | null],
-    ) => VoicevoxResultCode
+  voicevox_synthesizer_create_accent_phrases: FfiFunction<
+    [synthesizer: SynthesizerHandle, text: string, styleId: number, outJson: Buffer],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_create_accent_phrases_from_kana: KoffiFunc<
-    (
-      synthesizer: SynthesizerHandle,
-      kana: string,
-      styleId: number,
-      outJson: [OutJsonStringHandle | null],
-    ) => VoicevoxResultCode
+  voicevox_synthesizer_create_accent_phrases_from_kana: FfiFunction<
+    [synthesizer: SynthesizerHandle, kana: string, styleId: number, outJson: Buffer],
+    VoicevoxResultCode
   >;
-  voicevox_audio_query_create_from_accent_phrases: KoffiFunc<
-    (accentPhrasesJson: string, outJson: [OutJsonStringHandle | null]) => VoicevoxResultCode
+  voicevox_audio_query_create_from_accent_phrases: FfiFunction<
+    [accentPhrasesJson: string, outJson: Buffer],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_replace_mora_data: KoffiFunc<
-    (
-      synthesizer: SynthesizerHandle,
-      accentPhrasesJson: string,
-      styleId: number,
-      outJson: [OutJsonStringHandle | null],
-    ) => VoicevoxResultCode
+  voicevox_synthesizer_replace_mora_data: FfiFunction<
+    [synthesizer: SynthesizerHandle, accentPhrasesJson: string, styleId: number, outJson: Buffer],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_replace_phoneme_length: KoffiFunc<
-    (
-      synthesizer: SynthesizerHandle,
-      accentPhrasesJson: string,
-      styleId: number,
-      outJson: [OutJsonStringHandle | null],
-    ) => VoicevoxResultCode
+  voicevox_synthesizer_replace_phoneme_length: FfiFunction<
+    [synthesizer: SynthesizerHandle, accentPhrasesJson: string, styleId: number, outJson: Buffer],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_replace_mora_pitch: KoffiFunc<
-    (
-      synthesizer: SynthesizerHandle,
-      accentPhrasesJson: string,
-      styleId: number,
-      outJson: [OutJsonStringHandle | null],
-    ) => VoicevoxResultCode
+  voicevox_synthesizer_replace_mora_pitch: FfiFunction<
+    [synthesizer: SynthesizerHandle, accentPhrasesJson: string, styleId: number, outJson: Buffer],
+    VoicevoxResultCode
   >;
 
   // 音声合成
-  voicevox_make_default_synthesis_options: KoffiFunc<
-    () => { enable_interrogative_upspeak: boolean }
-  >;
-  voicevox_make_default_tts_options: KoffiFunc<() => { enable_interrogative_upspeak: boolean }>;
-  voicevox_synthesizer_synthesis: KoffiFunc<
-    (
+  /** デフォルトの`VoicevoxSynthesisOptions.enable_interrogative_upspeak` */
+  voicevox_make_default_synthesis_options: FfiFunction<[], boolean>;
+  /** デフォルトの`VoicevoxTtsOptions.enable_interrogative_upspeak` */
+  voicevox_make_default_tts_options: FfiFunction<[], boolean>;
+  /** `VoicevoxSynthesisOptions`はenable_interrogative_upspeakのbooleanとしてloweringされている */
+  voicevox_synthesizer_synthesis: FfiFunction<
+    [
       synthesizer: SynthesizerHandle,
       audioQueryJson: string,
       styleId: number,
-      options: { enable_interrogative_upspeak: boolean },
-      outLength: [number],
-      outWav: [OutWavDataHandle | null],
-    ) => VoicevoxResultCode
+      enableInterrogativeUpspeak: boolean,
+      outLength: Buffer,
+      outWav: Buffer,
+    ],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_tts: KoffiFunc<
-    (
+  voicevox_synthesizer_tts: FfiFunction<
+    [
       synthesizer: SynthesizerHandle,
       text: string,
       styleId: number,
-      options: { enable_interrogative_upspeak: boolean },
-      outLength: [number],
-      outWav: [OutWavDataHandle | null],
-    ) => VoicevoxResultCode
+      enableInterrogativeUpspeak: boolean,
+      outLength: Buffer,
+      outWav: Buffer,
+    ],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_tts_from_kana: KoffiFunc<
-    (
+  voicevox_synthesizer_tts_from_kana: FfiFunction<
+    [
       synthesizer: SynthesizerHandle,
       kana: string,
       styleId: number,
-      options: { enable_interrogative_upspeak: boolean },
-      outLength: [number],
-      outWav: [OutWavDataHandle | null],
-    ) => VoicevoxResultCode
+      enableInterrogativeUpspeak: boolean,
+      outLength: Buffer,
+      outWav: Buffer,
+    ],
+    VoicevoxResultCode
   >;
 
   // バリデーション
-  voicevox_audio_query_validate: KoffiFunc<(audioQueryJson: string) => VoicevoxResultCode>;
-  voicevox_accent_phrase_validate: KoffiFunc<(accentPhraseJson: string) => VoicevoxResultCode>;
-  voicevox_mora_validate: KoffiFunc<(moraJson: string) => VoicevoxResultCode>;
-  voicevox_score_validate?: KoffiFunc<(scoreJson: string) => VoicevoxResultCode>;
-  voicevox_note_validate?: KoffiFunc<(noteJson: string) => VoicevoxResultCode>;
-  voicevox_frame_audio_query_validate?: KoffiFunc<
-    (frameAudioQueryJson: string) => VoicevoxResultCode
+  // Note: これらの関数は新しいバージョンのvoicevox_coreで追加されたため、
+  // 古いバージョンでは利用できません。存在しない場合はundefinedになります。
+  voicevox_audio_query_validate?: FfiFunction<[audioQueryJson: string], VoicevoxResultCode>;
+  voicevox_accent_phrase_validate?: FfiFunction<[accentPhraseJson: string], VoicevoxResultCode>;
+  voicevox_mora_validate?: FfiFunction<[moraJson: string], VoicevoxResultCode>;
+  voicevox_score_validate?: FfiFunction<[scoreJson: string], VoicevoxResultCode>;
+  voicevox_note_validate?: FfiFunction<[noteJson: string], VoicevoxResultCode>;
+  voicevox_frame_audio_query_validate?: FfiFunction<
+    [frameAudioQueryJson: string],
+    VoicevoxResultCode
   >;
-  voicevox_frame_phoneme_validate?: KoffiFunc<(framePhonemeJson: string) => VoicevoxResultCode>;
-  voicevox_ensure_compatible?: KoffiFunc<
-    (query1Json: string, query2Json: string) => VoicevoxResultCode
+  voicevox_frame_phoneme_validate?: FfiFunction<[framePhonemeJson: string], VoicevoxResultCode>;
+  voicevox_ensure_compatible?: FfiFunction<
+    [query1Json: string, query2Json: string],
+    VoicevoxResultCode
   >;
 
   // 歌唱音声合成
-  voicevox_synthesizer_create_sing_frame_audio_query?: KoffiFunc<
-    (
-      synthesizer: SynthesizerHandle,
-      scoreJson: string,
-      styleId: number,
-      outJson: [OutJsonStringHandle | null],
-    ) => VoicevoxResultCode
+  // Note: これらの関数はv0.16.4以降で追加されたため、古いバージョンでは利用できません。
+  voicevox_synthesizer_create_sing_frame_audio_query?: FfiFunction<
+    [synthesizer: SynthesizerHandle, scoreJson: string, styleId: number, outJson: Buffer],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_create_sing_frame_f0?: KoffiFunc<
-    (
+  voicevox_synthesizer_create_sing_frame_f0?: FfiFunction<
+    [
       synthesizer: SynthesizerHandle,
       scoreJson: string,
       frameAudioQueryJson: string,
       styleId: number,
-      outJson: [OutJsonStringHandle | null],
-    ) => VoicevoxResultCode
+      outJson: Buffer,
+    ],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_create_sing_frame_volume?: KoffiFunc<
-    (
+  voicevox_synthesizer_create_sing_frame_volume?: FfiFunction<
+    [
       synthesizer: SynthesizerHandle,
       scoreJson: string,
       frameAudioQueryJson: string,
       styleId: number,
-      outJson: [OutJsonStringHandle | null],
-    ) => VoicevoxResultCode
+      outJson: Buffer,
+    ],
+    VoicevoxResultCode
   >;
-  voicevox_synthesizer_frame_synthesis?: KoffiFunc<
-    (
+  voicevox_synthesizer_frame_synthesis?: FfiFunction<
+    [
       synthesizer: SynthesizerHandle,
       frameAudioQueryJson: string,
       styleId: number,
-      outLength: [number],
-      outWav: [OutWavDataHandle | null],
-    ) => VoicevoxResultCode
+      outLength: Buffer,
+      outWav: Buffer,
+    ],
+    VoicevoxResultCode
   >;
 
   // ユーザー辞書
-  voicevox_user_dict_word_make: KoffiFunc<
-    (surface: string, pronunciation: string, accentType: number) => {
-      surface: string;
-      pronunciation: string;
-      accent_type: number;
-      word_type: number;
-      priority: number;
-    }
+  voicevox_user_dict_new: FfiFunction<[], UserDictHandle>;
+  voicevox_user_dict_load: FfiFunction<
+    [userDict: UserDictHandle, dictPath: string],
+    VoicevoxResultCode
   >;
-  voicevox_user_dict_new: KoffiFunc<() => UserDictHandle>;
-  voicevox_user_dict_load: KoffiFunc<
-    (userDict: UserDictHandle, dictPath: string) => VoicevoxResultCode
+  /** wordはpackUserDictWordでパックした構造体Bufferを渡す */
+  voicevox_user_dict_add_word: FfiFunction<
+    [userDict: UserDictHandle, word: Buffer, outUuid: Uint8Array],
+    VoicevoxResultCode
   >;
-  voicevox_user_dict_add_word: KoffiFunc<
-    (
-      userDict: UserDictHandle,
-      word: {
-        surface: string;
-        pronunciation: string;
-        accent_type: number;
-        word_type: number;
-        priority: number;
-      },
-      outUuid: Uint8Array,
-    ) => VoicevoxResultCode
+  voicevox_user_dict_update_word: FfiFunction<
+    [userDict: UserDictHandle, uuid: Uint8Array, word: Buffer],
+    VoicevoxResultCode
   >;
-  voicevox_user_dict_update_word: KoffiFunc<
-    (
-      userDict: UserDictHandle,
-      uuid: Uint8Array,
-      word: {
-        surface: string;
-        pronunciation: string;
-        accent_type: number;
-        word_type: number;
-        priority: number;
-      },
-    ) => VoicevoxResultCode
+  voicevox_user_dict_remove_word: FfiFunction<
+    [userDict: UserDictHandle, uuid: Uint8Array],
+    VoicevoxResultCode
   >;
-  voicevox_user_dict_remove_word: KoffiFunc<
-    (userDict: UserDictHandle, uuid: Uint8Array) => VoicevoxResultCode
+  voicevox_user_dict_to_json: FfiFunction<
+    [userDict: UserDictHandle, outJson: Buffer],
+    VoicevoxResultCode
   >;
-  voicevox_user_dict_to_json: KoffiFunc<
-    (userDict: UserDictHandle, outJson: [OutJsonStringHandle | null]) => VoicevoxResultCode
+  voicevox_user_dict_import: FfiFunction<
+    [userDict: UserDictHandle, otherDict: UserDictHandle],
+    VoicevoxResultCode
   >;
-  voicevox_user_dict_import: KoffiFunc<
-    (userDict: UserDictHandle, otherDict: UserDictHandle) => VoicevoxResultCode
+  voicevox_user_dict_save: FfiFunction<
+    [userDict: UserDictHandle, path: string],
+    VoicevoxResultCode
   >;
-  voicevox_user_dict_save: KoffiFunc<
-    (userDict: UserDictHandle, path: string) => VoicevoxResultCode
-  >;
-  voicevox_user_dict_delete: KoffiFunc<(userDict: UserDictHandle) => void>;
+  voicevox_user_dict_delete: FfiFunction<[userDict: UserDictHandle], void>;
 
   // ユーティリティ
-  voicevox_get_version: KoffiFunc<() => string>;
-  voicevox_error_result_to_message: KoffiFunc<(resultCode: VoicevoxResultCode) => string>;
-  voicevox_json_free: KoffiFunc<(json: OutJsonStringHandle) => void>;
-  voicevox_wav_free: KoffiFunc<(wav: OutWavDataHandle) => void>;
+  voicevox_get_version: FfiFunction<[], string>;
+  voicevox_error_result_to_message: FfiFunction<[resultCode: VoicevoxResultCode], string>;
+  voicevox_json_free: FfiFunction<[json: OutJsonStringHandle], void>;
+  voicevox_wav_free: FfiFunction<[wav: OutWavDataHandle], void>;
+}
+
+/**
+ * 擬似型をnode:ffiが受け付ける型名に変換する
+ */
+function toNativeType(type: FfiType): string {
+  switch (type) {
+    case "cstring":
+      return "pointer";
+    case "bool_u8":
+      return "u8";
+    default:
+      return type;
+  }
+}
+
+/**
+ * シグネチャをnode:ffiにそのまま渡せる形に変換する
+ */
+function toNativeSignature(signature: FunctionSignature): NativeSignature {
+  return {
+    return: toNativeType(signature.return),
+    arguments: signature.arguments.map(toNativeType),
+  };
+}
+
+/**
+ * JS側の引数を宣言型に基づいてFFIプリミティブに変換する
+ *
+ * `keepAlive`は引数が参照するメモリのBuffer群。ネイティブ呼び出しが完了するまで
+ * 参照を保持してGCを防ぐこと（同期呼び出しはJSスレッドがブロックされるため安全。
+ * 非同期呼び出しはAsyncDispatcherが完了まで保持する）。
+ */
+function marshalArguments(
+  name: string,
+  types: readonly FfiType[],
+  args: readonly unknown[],
+  ffi: NodeFfiModule,
+): { values: (number | bigint)[]; keepAlive: ArrayBufferView[] } {
+  if (args.length !== types.length) {
+    throw new TypeError(`${name}: expected ${types.length} arguments, got ${args.length}`);
+  }
+
+  const values: (number | bigint)[] = [];
+  const keepAlive: ArrayBufferView[] = [];
+
+  for (const [index, type] of types.entries()) {
+    const arg = args[index];
+    switch (type) {
+      case "pointer": {
+        if (typeof arg === "string") {
+          const buf = Buffer.from(`${arg}\0`, "utf8");
+          keepAlive.push(buf);
+          values.push(ffi.getRawPointer(buf));
+        } else if (ArrayBuffer.isView(arg)) {
+          keepAlive.push(arg);
+          values.push(ffi.getRawPointer(arg));
+        } else if (typeof arg === "bigint") {
+          values.push(arg);
+        } else if (arg === null || arg === undefined) {
+          values.push(NULL_POINTER);
+        } else {
+          throw new TypeError(`${name}: argument ${index} cannot be passed as a pointer`);
+        }
+        break;
+      }
+      case "u64": {
+        if (typeof arg === "bigint") {
+          values.push(arg);
+        } else if (typeof arg === "number") {
+          values.push(BigInt(arg));
+        } else {
+          throw new TypeError(`${name}: argument ${index} must be a bigint or number`);
+        }
+        break;
+      }
+      case "i32":
+      case "u32":
+      case "u8": {
+        if (typeof arg !== "number") {
+          throw new TypeError(`${name}: argument ${index} must be a number`);
+        }
+        values.push(arg);
+        break;
+      }
+      case "bool_u8": {
+        if (typeof arg !== "boolean") {
+          throw new TypeError(`${name}: argument ${index} must be a boolean`);
+        }
+        values.push(arg ? 1 : 0);
+        break;
+      }
+      default:
+        throw new TypeError(`${name}: type "${type}" is not supported as an argument`);
+    }
+  }
+
+  return { values, keepAlive };
+}
+
+/**
+ * FFIの生の戻り値を宣言型に基づいてJSの値に変換する
+ */
+function convertReturnValue(type: FfiType, raw: unknown): unknown {
+  switch (type) {
+    case "void":
+      return undefined;
+    case "bool":
+    case "bool_u8":
+      return Boolean(raw);
+    case "cstring":
+      return readCString(raw as bigint);
+    default:
+      return raw;
+  }
+}
+
+/**
+ * 1つのC関数の型付きラッパー（同期 + `.async`）を生成する
+ */
+function createFunction(
+  name: string,
+  signature: FunctionSignature,
+  lib: NativeLibrary,
+  dispatcher: AsyncDispatcher,
+  ffi: NodeFfiModule,
+): FfiFunction<unknown[], unknown> | undefined {
+  let nativeFn: (...args: unknown[]) => unknown;
+  try {
+    nativeFn = lib.getFunction(name, toNativeSignature(signature));
+  } catch (error) {
+    if (signature.optional === true) {
+      return undefined;
+    }
+    throw error;
+  }
+
+  const syncCall = (...args: unknown[]): unknown => {
+    // 同期呼び出し中はJSスレッドがブロックされGCが走らないため、
+    // marshalArgumentsのkeepAliveはこのスコープで保持されていれば十分
+    const { values } = marshalArguments(name, signature.arguments, args, ffi);
+    return convertReturnValue(signature.return, nativeFn(...values));
+  };
+
+  const asyncCall = async (...args: unknown[]): Promise<unknown> => {
+    const { values, keepAlive } = marshalArguments(name, signature.arguments, args, ffi);
+    const raw = await dispatcher.call(name, values, keepAlive);
+    return convertReturnValue(signature.return, raw);
+  };
+
+  return Object.assign(syncCall, { async: asyncCall });
 }
 
 /**
  * C API関数を宣言する
  *
- * @param lib - koffiライブラリインスタンス
+ * @param lib - node:ffiのDynamicLibraryインスタンス
+ * @param libPath - ロード済みライブラリのパス（Workerスレッドが再ロードするために使用）
  * @returns C API関数群
  */
-export function declareFunctions(lib: IKoffiLib): VoicevoxCoreFunctions {
-  // C APIの宣言ではchar*を返しているが、ここではvoid*で宣言しているものがある
-  // それらは後でC APIを呼び出してメモリを解放する必要があり、ポインタのまま持っておかなければならない
-  // しかし、koffiはchar*を文字列として自動変換してしまうため、C APIの宣言ではchar*を返す関数もvoid*で宣言している
+export function declareFunctions(lib: NativeLibrary, libPath: string): VoicevoxCoreFunctions {
+  const ffi = getNodeFfi();
 
-  return {
-    // ライブラリインスタンス
-    lib,
-    // ONNX Runtime関連
-    voicevox_get_onnxruntime_lib_versioned_filename: lib.func(
-      "const char* voicevox_get_onnxruntime_lib_versioned_filename(void)",
-    ),
-    voicevox_get_onnxruntime_lib_unversioned_filename: lib.func(
-      "const char* voicevox_get_onnxruntime_lib_unversioned_filename(void)",
-    ),
-    voicevox_make_default_load_onnxruntime_options: lib.func(
-      "VoicevoxLoadOnnxruntimeOptions voicevox_make_default_load_onnxruntime_options(void)",
-    ),
-    voicevox_onnxruntime_get: lib.func(
-      "const VoicevoxOnnxruntimePtr voicevox_onnxruntime_get(void)",
-    ),
-    voicevox_onnxruntime_load_once: lib.func(
-      "int32 voicevox_onnxruntime_load_once(VoicevoxLoadOnnxruntimeOptions options, _Out_ const VoicevoxOnnxruntimePtr* out_onnxruntime)",
-    ),
-    voicevox_onnxruntime_create_supported_devices_json: lib.func(
-      "int32 voicevox_onnxruntime_create_supported_devices_json(const VoicevoxOnnxruntimePtr onnxruntime, _Out_ char** output_supported_devices_json)",
-    ),
+  const nativeSignatures: Record<string, NativeSignature> = {};
+  for (const [name, signature] of Object.entries(FUNCTION_SIGNATURES)) {
+    nativeSignatures[name] = toNativeSignature(signature);
+  }
+  const dispatcher = new AsyncDispatcher(libPath, nativeSignatures);
 
-    // Open JTalk関連
-    voicevox_open_jtalk_rc_new: lib.func(
-      "int32 voicevox_open_jtalk_rc_new(const char* open_jtalk_dic_dir, _Out_ OpenJtalkRcPtr* out_open_jtalk)",
-    ),
-    voicevox_open_jtalk_rc_use_user_dict: lib.func(
-      "int32 voicevox_open_jtalk_rc_use_user_dict(const OpenJtalkRcPtr open_jtalk, const VoicevoxUserDictPtr user_dict)",
-    ),
-    voicevox_open_jtalk_rc_analyze: lib.func(
-      "int32 voicevox_open_jtalk_rc_analyze(const OpenJtalkRcPtr open_jtalk, const char* text, _Out_ char** output_accent_phrases_json)",
-    ),
-    voicevox_open_jtalk_rc_delete: lib.func(
-      "void voicevox_open_jtalk_rc_delete(OpenJtalkRcPtr open_jtalk)",
-    ),
+  const functions: Record<string, unknown> = { lib };
+  for (const name of Object.keys(FUNCTION_SIGNATURES) as FunctionName[]) {
+    functions[name] = createFunction(name, FUNCTION_SIGNATURES[name], lib, dispatcher, ffi);
+  }
 
-    // 音声モデル関連
-    voicevox_voice_model_file_open: lib.func(
-      "int32 voicevox_voice_model_file_open(const char* path, _Out_ VoicevoxVoiceModelFilePtr* out_model)",
-    ),
-    voicevox_voice_model_file_id: lib.func(
-      "void voicevox_voice_model_file_id(const VoicevoxVoiceModelFilePtr model, _Out_ uint8* output_voice_model_id)",
-    ),
-    voicevox_voice_model_file_create_metas_json: lib.func(
-      "void* voicevox_voice_model_file_create_metas_json(const VoicevoxVoiceModelFilePtr model)",
-    ),
-    voicevox_voice_model_file_delete: lib.func(
-      "void voicevox_voice_model_file_delete(VoicevoxVoiceModelFilePtr model)",
-    ),
-
-    // シンセサイザ関連
-    voicevox_make_default_initialize_options: lib.func(
-      "VoicevoxInitializeOptions voicevox_make_default_initialize_options(void)",
-    ),
-    voicevox_synthesizer_new: lib.func(
-      "int32 voicevox_synthesizer_new(const VoicevoxOnnxruntimePtr onnxruntime, const OpenJtalkRcPtr open_jtalk, VoicevoxInitializeOptions options, _Out_ VoicevoxSynthesizerPtr* out_synthesizer)",
-    ),
-    voicevox_synthesizer_delete: lib.func(
-      "void voicevox_synthesizer_delete(VoicevoxSynthesizerPtr synthesizer)",
-    ),
-    voicevox_synthesizer_load_voice_model: lib.func(
-      "int32 voicevox_synthesizer_load_voice_model(const VoicevoxSynthesizerPtr synthesizer, const VoicevoxVoiceModelFilePtr model)",
-    ),
-    voicevox_synthesizer_unload_voice_model: lib.func(
-      "int32 voicevox_synthesizer_unload_voice_model(const VoicevoxSynthesizerPtr synthesizer, const uint8* model_id)",
-    ),
-    voicevox_synthesizer_get_onnxruntime: lib.func(
-      "const VoicevoxOnnxruntimePtr voicevox_synthesizer_get_onnxruntime(const VoicevoxSynthesizerPtr synthesizer)",
-    ),
-    voicevox_synthesizer_is_gpu_mode: lib.func(
-      "bool voicevox_synthesizer_is_gpu_mode(const VoicevoxSynthesizerPtr synthesizer)",
-    ),
-    voicevox_synthesizer_is_loaded_voice_model: lib.func(
-      "bool voicevox_synthesizer_is_loaded_voice_model(const VoicevoxSynthesizerPtr synthesizer, const uint8* model_id)",
-    ),
-    voicevox_synthesizer_create_metas_json: lib.func(
-      "void* voicevox_synthesizer_create_metas_json(const VoicevoxSynthesizerPtr synthesizer)",
-    ),
-
-    // AudioQuery/AccentPhrase生成
-    voicevox_synthesizer_create_audio_query: lib.func(
-      "int32 voicevox_synthesizer_create_audio_query(const VoicevoxSynthesizerPtr synthesizer, const char* text, uint32 style_id, _Out_ void** output_audio_query_json)",
-    ),
-    voicevox_synthesizer_create_audio_query_from_kana: lib.func(
-      "int32 voicevox_synthesizer_create_audio_query_from_kana(const VoicevoxSynthesizerPtr synthesizer, const char* kana, uint32 style_id, _Out_ void** output_audio_query_json)",
-    ),
-    voicevox_synthesizer_create_accent_phrases: lib.func(
-      "int32 voicevox_synthesizer_create_accent_phrases(const VoicevoxSynthesizerPtr synthesizer, const char* text, uint32 style_id, _Out_ void** output_accent_phrases_json)",
-    ),
-    voicevox_synthesizer_create_accent_phrases_from_kana: lib.func(
-      "int32 voicevox_synthesizer_create_accent_phrases_from_kana(const VoicevoxSynthesizerPtr synthesizer, const char* kana, uint32 style_id, _Out_ void** output_accent_phrases_json)",
-    ),
-    voicevox_audio_query_create_from_accent_phrases: lib.func(
-      "int32 voicevox_audio_query_create_from_accent_phrases(const char* accent_phrases_json, _Out_ void** output_audio_query_json)",
-    ),
-    voicevox_synthesizer_replace_mora_data: lib.func(
-      "int32 voicevox_synthesizer_replace_mora_data(const VoicevoxSynthesizerPtr synthesizer, const char* accent_phrases_json, uint32 style_id, _Out_ void** output_accent_phrases_json)",
-    ),
-    voicevox_synthesizer_replace_phoneme_length: lib.func(
-      "int32 voicevox_synthesizer_replace_phoneme_length(const VoicevoxSynthesizerPtr synthesizer, const char* accent_phrases_json, uint32 style_id, _Out_ void** output_accent_phrases_json)",
-    ),
-    voicevox_synthesizer_replace_mora_pitch: lib.func(
-      "int32 voicevox_synthesizer_replace_mora_pitch(const VoicevoxSynthesizerPtr synthesizer, const char* accent_phrases_json, uint32 style_id, _Out_ void** output_accent_phrases_json)",
-    ),
-
-    // 音声合成
-    voicevox_make_default_synthesis_options: lib.func(
-      "VoicevoxSynthesisOptions voicevox_make_default_synthesis_options(void)",
-    ),
-    voicevox_make_default_tts_options: lib.func(
-      "VoicevoxTtsOptions voicevox_make_default_tts_options(void)",
-    ),
-    voicevox_synthesizer_synthesis: lib.func(
-      "int32 voicevox_synthesizer_synthesis(const VoicevoxSynthesizerPtr synthesizer, const char* audio_query_json, uint32 style_id, VoicevoxSynthesisOptions options, _Out_ uintptr_t* output_wav_length, _Out_ uint8** output_wav)",
-    ),
-    voicevox_synthesizer_tts: lib.func(
-      "int32 voicevox_synthesizer_tts(const VoicevoxSynthesizerPtr synthesizer, const char* text, uint32 style_id, VoicevoxTtsOptions options, _Out_ uintptr_t* output_wav_length, _Out_ uint8** output_wav)",
-    ),
-    voicevox_synthesizer_tts_from_kana: lib.func(
-      "int32 voicevox_synthesizer_tts_from_kana(const VoicevoxSynthesizerPtr synthesizer, const char* kana, uint32 style_id, VoicevoxTtsOptions options, _Out_ uintptr_t* output_wav_length, _Out_ uint8** output_wav)",
-    ),
-
-    // バリデーション
-    // Note: これらの関数は新しいバージョンのvoicevox_coreで追加されたため、
-    // 古いバージョンでは利用できません。存在しない場合はエラーを無視します。
-    voicevox_audio_query_validate: tryLoadFunc(
-      lib,
-      "int32 voicevox_audio_query_validate(const char* audio_query_json)",
-    ),
-    voicevox_accent_phrase_validate: tryLoadFunc(
-      lib,
-      "int32 voicevox_accent_phrase_validate(const char* accent_phrase_json)",
-    ),
-    voicevox_mora_validate: tryLoadFunc(lib, "int32 voicevox_mora_validate(const char* mora_json)"),
-    voicevox_score_validate: tryLoadFunc(
-      lib,
-      "int32 voicevox_score_validate(const char* score_json)",
-    ),
-    voicevox_note_validate: tryLoadFunc(lib, "int32 voicevox_note_validate(const char* note_json)"),
-    voicevox_frame_audio_query_validate: tryLoadFunc(
-      lib,
-      "int32 voicevox_frame_audio_query_validate(const char* frame_audio_query_json)",
-    ),
-    voicevox_frame_phoneme_validate: tryLoadFunc(
-      lib,
-      "int32 voicevox_frame_phoneme_validate(const char* frame_phoneme_json)",
-    ),
-    voicevox_ensure_compatible: tryLoadFunc(
-      lib,
-      "int32 voicevox_ensure_compatible(const char* query1_json, const char* query2_json)",
-    ),
-
-    // 歌唱音声合成
-    // Note: これらの関数はv0.16.4以降で追加されたため、古いバージョンでは利用できません。
-    voicevox_synthesizer_create_sing_frame_audio_query: tryLoadFunc(
-      lib,
-      "int32 voicevox_synthesizer_create_sing_frame_audio_query(const VoicevoxSynthesizerPtr synthesizer, const char* score_json, uint32 style_id, _Out_ void** output_frame_audio_query_json)",
-    ),
-    voicevox_synthesizer_create_sing_frame_f0: tryLoadFunc(
-      lib,
-      "int32 voicevox_synthesizer_create_sing_frame_f0(const VoicevoxSynthesizerPtr synthesizer, const char* score_json, const char* frame_audio_query_json, uint32 style_id, _Out_ void** output_f0_json)",
-    ),
-    voicevox_synthesizer_create_sing_frame_volume: tryLoadFunc(
-      lib,
-      "int32 voicevox_synthesizer_create_sing_frame_volume(const VoicevoxSynthesizerPtr synthesizer, const char* score_json, const char* frame_audio_query_json, uint32 style_id, _Out_ void** output_volume_json)",
-    ),
-    voicevox_synthesizer_frame_synthesis: tryLoadFunc(
-      lib,
-      "int32 voicevox_synthesizer_frame_synthesis(const VoicevoxSynthesizerPtr synthesizer, const char* frame_audio_query_json, uint32 style_id, _Out_ uintptr_t* output_wav_length, _Out_ uint8** output_wav)",
-    ),
-
-    // ユーザー辞書
-    voicevox_user_dict_word_make: lib.func(
-      "VoicevoxUserDictWord voicevox_user_dict_word_make(const char* surface, const char* pronunciation, uintptr_t accent_type)",
-    ),
-    voicevox_user_dict_new: lib.func("VoicevoxUserDictPtr voicevox_user_dict_new(void)"),
-    voicevox_user_dict_load: lib.func(
-      "int32 voicevox_user_dict_load(const VoicevoxUserDictPtr user_dict, const char* dict_path)",
-    ),
-    voicevox_user_dict_add_word: lib.func(
-      "int32 voicevox_user_dict_add_word(const VoicevoxUserDictPtr user_dict, const VoicevoxUserDictWord* word, _Out_ uint8* output_word_uuid)",
-    ),
-    voicevox_user_dict_update_word: lib.func(
-      "int32 voicevox_user_dict_update_word(const VoicevoxUserDictPtr user_dict, const uint8* word_uuid, const VoicevoxUserDictWord* word)",
-    ),
-    voicevox_user_dict_remove_word: lib.func(
-      "int32 voicevox_user_dict_remove_word(const VoicevoxUserDictPtr user_dict, const uint8* word_uuid)",
-    ),
-    voicevox_user_dict_to_json: lib.func(
-      "int32 voicevox_user_dict_to_json(const VoicevoxUserDictPtr user_dict, _Out_ char** output_json)",
-    ),
-    voicevox_user_dict_import: lib.func(
-      "int32 voicevox_user_dict_import(const VoicevoxUserDictPtr user_dict, const VoicevoxUserDictPtr other_dict)",
-    ),
-    voicevox_user_dict_save: lib.func(
-      "int32 voicevox_user_dict_save(const VoicevoxUserDictPtr user_dict, const char* path)",
-    ),
-    voicevox_user_dict_delete: lib.func(
-      "void voicevox_user_dict_delete(VoicevoxUserDictPtr user_dict)",
-    ),
-
-    // ユーティリティ
-    voicevox_get_version: lib.func("const char* voicevox_get_version(void)"),
-    voicevox_error_result_to_message: lib.func(
-      "const char* voicevox_error_result_to_message(int32 result_code)",
-    ),
-    voicevox_json_free: lib.func("void voicevox_json_free(char* json)"),
-    voicevox_wav_free: lib.func("void voicevox_wav_free(uint8* wav)"),
-  };
+  return functions as unknown as VoicevoxCoreFunctions;
 }

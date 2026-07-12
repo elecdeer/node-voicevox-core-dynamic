@@ -5,7 +5,7 @@
  * `using`宣言により、リソース管理が自動化されます。
  *
  * 使用例:
- * pnpm tsx examples/basic.ts
+ * NODE_OPTIONS="--experimental-ffi" pnpm tsx examples/basic.ts
  */
 
 import { createVoicevoxClient } from "../src/index.js";

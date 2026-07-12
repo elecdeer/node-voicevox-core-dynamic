@@ -2,6 +2,8 @@
  * ハンドル型定義
  *
  * C APIの不透明ポインタを型安全に扱うためのブランド型
+ *
+ * 実体はnode:ffiが返す生ポインタアドレス（bigint）。NULLは`0n`で表される。
  */
 
 declare const OnnxruntimeHandleBrand: unique symbol;
@@ -17,10 +19,8 @@ declare const OutWavDataHandleBrand: unique symbol;
  *
  * シングルトンインスタンスへの参照
  */
-export type OnnxruntimeHandle = {
+export type OnnxruntimeHandle = bigint & {
   readonly [OnnxruntimeHandleBrand]: never;
-  /** @internal */
-  readonly _ptr: unknown;
 };
 
 /**
@@ -28,10 +28,8 @@ export type OnnxruntimeHandle = {
  *
  * テキスト解析器への参照
  */
-export type OpenJtalkHandle = {
+export type OpenJtalkHandle = bigint & {
   readonly [OpenJtalkHandleBrand]: never;
-  /** @internal */
-  readonly _ptr: unknown;
 };
 
 /**
@@ -39,10 +37,8 @@ export type OpenJtalkHandle = {
  *
  * 音声シンセサイザへの参照
  */
-export type SynthesizerHandle = {
+export type SynthesizerHandle = bigint & {
   readonly [SynthesizerHandleBrand]: never;
-  /** @internal */
-  readonly _ptr: unknown;
 };
 
 /**
@@ -50,10 +46,8 @@ export type SynthesizerHandle = {
  *
  * VVMファイルへの参照
  */
-export type VoiceModelFileHandle = {
+export type VoiceModelFileHandle = bigint & {
   readonly [VoiceModelFileHandleBrand]: never;
-  /** @internal */
-  readonly _ptr: unknown;
 };
 
 /**
@@ -61,10 +55,8 @@ export type VoiceModelFileHandle = {
  *
  * ユーザー辞書への参照
  */
-export type UserDictHandle = {
+export type UserDictHandle = bigint & {
   readonly [UserDictHandleBrand]: never;
-  /** @internal */
-  readonly _ptr: unknown;
 };
 
 /**
@@ -73,10 +65,8 @@ export type UserDictHandle = {
  * C APIの関数から出力されるJSON文字列ポインタ
  * voicevox_json_freeで解放する必要がある
  */
-export type OutJsonStringHandle = {
+export type OutJsonStringHandle = bigint & {
   readonly [OutJsonStringHandleBrand]: never;
-  /** @internal */
-  readonly _ptr: unknown;
 };
 
 /**
@@ -85,8 +75,6 @@ export type OutJsonStringHandle = {
  * C APIの関数から出力されるWAVデータポインタ
  * voicevox_wav_freeで解放する必要がある
  */
-export type OutWavDataHandle = {
+export type OutWavDataHandle = bigint & {
   readonly [OutWavDataHandleBrand]: never;
-  /** @internal */
-  readonly _ptr: unknown;
 };

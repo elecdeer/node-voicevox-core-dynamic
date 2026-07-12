@@ -4,11 +4,12 @@
 
 ## 前提条件
 
-1. voicevox_coreライブラリをダウンロードして配置
-2. 音声モデル（VVMファイル）を配置
+1. Node.js >= 26.1.0（`node:ffi`を使用するため`--experimental-ffi`フラグが必要）
+2. voicevox_coreライブラリをダウンロードして配置
+3. 音声モデル（VVMファイル）を配置
 
 各サンプルコードでは、高レベルAPIを使用しており、ライブラリパスを直接指定します。
-環境変数の設定は不要です。
+環境変数の設定は不要です（`NODE_OPTIONS="--experimental-ffi"`を除く）。
 
 ## サンプル一覧
 
@@ -18,7 +19,7 @@
 `using`宣言によってリソース管理が自動化されています。
 
 ```bash
-pnpm tsx --env-file=.env examples/basic.ts
+NODE_OPTIONS="--experimental-ffi" pnpm tsx --env-file=.env examples/basic.ts
 ```
 
 **学べること:**
@@ -36,7 +37,7 @@ AudioQueryを生成してパラメータを調整する例です。
 高レベルAPIで簡潔に記述できます。
 
 ```bash
-pnpm tsx --env-file=.env examples/audio-query.ts
+NODE_OPTIONS="--experimental-ffi" pnpm tsx --env-file=.env examples/audio-query.ts
 ```
 
 **学べること:**
@@ -52,7 +53,7 @@ GPUアクセラレーションを使用する例です。
 初期化オプションで簡単にGPUモードを有効化できます。
 
 ```bash
-pnpm tsx --env-file=.env examples/gpu-mode.ts
+NODE_OPTIONS="--experimental-ffi" pnpm tsx --env-file=.env examples/gpu-mode.ts
 ```
 
 **学べること:**
@@ -67,7 +68,7 @@ pnpm tsx --env-file=.env examples/gpu-mode.ts
 `using`宣言により、複数のモデルファイルを安全に管理できます。
 
 ```bash
-pnpm tsx --env-file=.env examples/multiple-models.ts
+NODE_OPTIONS="--experimental-ffi" pnpm tsx --env-file=.env examples/multiple-models.ts
 ```
 
 **学べること:**
@@ -83,7 +84,7 @@ pnpm tsx --env-file=.env examples/multiple-models.ts
 楽譜（Score）から歌声を生成できます。
 
 ```bash
-pnpm tsx --env-file=.env examples/singing.ts
+NODE_OPTIONS="--experimental-ffi" pnpm tsx --env-file=.env examples/singing.ts
 ```
 
 **学べること:**

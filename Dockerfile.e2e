@@ -22,7 +22,8 @@ RUN ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "arm64" || echo "x64") && \
       -o /opt/voicevox
 
 # ステージ2: Node.js環境でテスト実行
-FROM node:24
+# node:ffiのためNode.js >= 26.1.0が必要
+FROM node:26
 
 WORKDIR /app
 

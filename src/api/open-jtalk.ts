@@ -1,10 +1,15 @@
 /**
  * OpenJTalk関連API
  */
-import koffi from "koffi";
 import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
-import { promisifyKoffiAsync } from "../ffi/functions.js";
-import { VoicevoxResultCode } from "../types/enums.js";
+import {
+  allocOutPointer,
+  readOutPointer,
+  readCString,
+  packUserDictWord,
+  NULL_POINTER,
+} from "../ffi/native.js";
+import { VoicevoxResultCode, VoicevoxUserDictWordType } from "../types/enums.js";
 import type {
   OpenJtalkHandle,
   OutJsonStringHandle,
@@ -13,6 +18,15 @@ import type {
 } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
 import { uuidBytesToString, uuidStringToBytes } from "../utils/uuid.js";
+
+/**
+ * ユーザー辞書単語のデフォルト値
+ *
+ * voicevox_coreの`DEFAULT_WORD_TYPE` / `DEFAULT_PRIORITY`
+ * （crates/voicevox_core/src/engine/talk/user_dict/word.rs）と同じ値
+ */
+const DEFAULT_WORD_TYPE = VoicevoxUserDictWordType.CommonNoun;
+const DEFAULT_PRIORITY = 5;
 
 /**
  * OpenJTalkを構築する
@@ -26,24 +40,20 @@ export async function createOpenJtalk(
   functions: VoicevoxCoreFunctions,
   dictDir: string,
 ): Promise<OpenJtalkHandle> {
-  const outOpenJtalk: [OpenJtalkHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_open_jtalk_rc_new,
-    dictDir,
-    outOpenJtalk,
-  );
+  const outOpenJtalk = allocOutPointer();
+  const resultCode = await functions.voicevox_open_jtalk_rc_new.async(dictDir, outOpenJtalk);
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode, message);
   }
 
-  const handle = outOpenJtalk[0];
-  if (handle == null) {
+  const handle = readOutPointer(outOpenJtalk);
+  if (handle === NULL_POINTER) {
     throw new Error("Failed to create OpenJtalk: null handle returned");
   }
 
-  return handle;
+  return handle as OpenJtalkHandle;
 }
 
 /**
@@ -70,7 +80,7 @@ export function deleteOpenJtalk(
 export function useUserDict(
   functions: VoicevoxCoreFunctions,
   openJtalk: OpenJtalkHandle,
-  userDict: import("../types/index.js").UserDictHandle,
+  userDict: UserDictHandle,
 ): void {
   const resultCode = functions.voicevox_open_jtalk_rc_use_user_dict(openJtalk, userDict);
 
@@ -94,25 +104,20 @@ export async function analyze(
   openJtalk: OpenJtalkHandle,
   text: string,
 ): Promise<string> {
-  const outJson: [import("../types/index.js").OutJsonStringHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_open_jtalk_rc_analyze,
-    openJtalk,
-    text,
-    outJson,
-  );
+  const outJson = allocOutPointer();
+  const resultCode = await functions.voicevox_open_jtalk_rc_analyze.async(openJtalk, text, outJson);
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to analyze: null pointer returned");
   }
 
-  const jsonStr = (await import("koffi")).default.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return jsonStr;
@@ -121,6 +126,10 @@ export async function analyze(
 /**
  * ユーザー辞書の単語を作成
  *
+ * C APIの`voicevox_user_dict_word_make`は32バイト構造体を値返しするため
+ * node:ffiでは呼び出せない。同関数が設定するデフォルト値
+ * （voicevox_coreの`DEFAULT_WORD_TYPE` / `DEFAULT_PRIORITY`）をJS側で再現している。
+ *
  * @param functions - VOICEVOX CORE FFI関数
  * @param surface - 表記
  * @param pronunciation - 読み（カタカナ）
@@ -128,19 +137,17 @@ export async function analyze(
  * @returns ユーザー辞書単語（デフォルト値が設定される）
  */
 export function createUserDictWord(
-  functions: VoicevoxCoreFunctions,
+  _functions: VoicevoxCoreFunctions,
   surface: string,
   pronunciation: string,
   accentType: number,
 ): UserDictWord {
-  const word = functions.voicevox_user_dict_word_make(surface, pronunciation, accentType);
-
   return {
-    surface: word.surface,
-    pronunciation: word.pronunciation,
-    accentType: word.accent_type,
-    wordType: word.word_type,
-    priority: word.priority,
+    surface,
+    pronunciation,
+    accentType,
+    wordType: DEFAULT_WORD_TYPE,
+    priority: DEFAULT_PRIORITY,
   };
 }
 
@@ -189,16 +196,11 @@ export function addUserDictWord(
   userDict: UserDictHandle,
   word: UserDictWord,
 ): string {
-  const cWord = {
-    surface: word.surface,
-    pronunciation: word.pronunciation,
-    accent_type: word.accentType,
-    word_type: word.wordType,
-    priority: word.priority,
-  };
+  // packed.keepAliveの文字列Bufferは同期呼び出し完了までこのスコープで生存する
+  const packed = packUserDictWord(word);
 
   const outUuid = new Uint8Array(16);
-  const resultCode = functions.voicevox_user_dict_add_word(userDict, cWord, outUuid);
+  const resultCode = functions.voicevox_user_dict_add_word(userDict, packed.struct, outUuid);
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
@@ -223,16 +225,11 @@ export function updateUserDictWord(
   wordUuid: string,
   word: UserDictWord,
 ): void {
-  const cWord = {
-    surface: word.surface,
-    pronunciation: word.pronunciation,
-    accent_type: word.accentType,
-    word_type: word.wordType,
-    priority: word.priority,
-  };
+  // packed.keepAliveの文字列Bufferは同期呼び出し完了までこのスコープで生存する
+  const packed = packUserDictWord(word);
 
   const uuidBytes = uuidStringToBytes(wordUuid);
-  const resultCode = functions.voicevox_user_dict_update_word(userDict, uuidBytes, cWord);
+  const resultCode = functions.voicevox_user_dict_update_word(userDict, uuidBytes, packed.struct);
 
   if (resultCode !== VoicevoxResultCode.Ok) {
     const message = functions.voicevox_error_result_to_message(resultCode);
@@ -271,7 +268,7 @@ export function removeUserDictWord(
  * @throws {VoicevoxError} 出力に失敗した場合
  */
 export function userDictToJson(functions: VoicevoxCoreFunctions, userDict: UserDictHandle): string {
-  const outJson: [OutJsonStringHandle | null] = [null];
+  const outJson = allocOutPointer();
   const resultCode = functions.voicevox_user_dict_to_json(userDict, outJson);
 
   if (resultCode !== VoicevoxResultCode.Ok) {
@@ -279,12 +276,12 @@ export function userDictToJson(functions: VoicevoxCoreFunctions, userDict: UserD
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to create JSON: null pointer returned");
   }
 
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return jsonStr;
