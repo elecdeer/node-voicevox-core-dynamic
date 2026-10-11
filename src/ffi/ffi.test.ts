@@ -5,6 +5,9 @@
  * （fixtures/mock-voicevox-core.c）をコンパイルし、node:ffiによる宣言・
  * マーシャリング・構造体のABI lowering・Worker経由の非同期呼び出しを検証する。
  *
+ * 各テストの前後でモックが確保したリソースの生存数を比較し、
+ * ラッパーが解放関数を呼び忘れていないことも検証する。
+ *
  * Cコンパイラが見つからない環境ではスキップされる。
  */
 
@@ -13,7 +16,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, describe, expect, test } from "vite-plus/test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "vite-plus/test";
 import {
   createOpenJtalk,
   deleteOpenJtalk,
@@ -31,6 +34,7 @@ import {
   getVoiceModelId,
   closeVoiceModelFile,
   isLoadedVoiceModel,
+  getSynthesizerMetasJson,
 } from "../api/voice-model.js";
 import { createSynthesizer, deleteSynthesizer, getVersion, isGpuMode } from "../api/voicevox.js";
 import { createVoicevoxClient } from "../client/voicevox-client.js";
@@ -40,6 +44,9 @@ import type { OnnxruntimeHandle, OpenJtalkHandle, SynthesizerHandle } from "../t
 import type { VoicevoxCoreFunctions } from "./functions.js";
 import { loadLibrary } from "./library.js";
 import { readCString, unpackInitializeOptions } from "./native.js";
+
+/** モックライブラリがトラッキングするリソースの種類 */
+type TrackedResource = "json" | "wav" | "open_jtalk" | "voice_model" | "synthesizer" | "user_dict";
 
 const C_COMPILER = ["cc", "gcc", "clang"].find(
   (compiler) => spawnSync(compiler, ["--version"], { stdio: "ignore" }).status === 0,
@@ -58,6 +65,27 @@ describe.runIf(C_COMPILER !== undefined && process.platform !== "win32")(
     /** モックライブラリの検証用アクセサを取得する */
     function mockAccessor(name: string, returnType: string): () => unknown {
       return functions.lib.getFunction(name, { return: returnType, arguments: [] });
+    }
+
+    /** モックライブラリ上で生存している指定種類のリソース数を取得する */
+    function liveCount(resource: TrackedResource): bigint {
+      const count = mockAccessor(`mock_live_${resource}`, "i64")();
+      if (typeof count !== "bigint") {
+        throw new TypeError(`mock_live_${resource} returned non-bigint: ${String(count)}`);
+      }
+      return count;
+    }
+
+    /** モックライブラリ上で生存しているリソース数を種類ごとに取得する */
+    function liveResources(): Record<TrackedResource, bigint> {
+      return {
+        json: liveCount("json"),
+        wav: liveCount("wav"),
+        open_jtalk: liveCount("open_jtalk"),
+        voice_model: liveCount("voice_model"),
+        synthesizer: liveCount("synthesizer"),
+        user_dict: liveCount("user_dict"),
+      };
     }
 
     beforeAll(async () => {
@@ -80,6 +108,17 @@ describe.runIf(C_COMPILER !== undefined && process.platform !== "win32")(
         accelerationMode: VoicevoxAccelerationMode.Gpu,
         cpuNumThreads: 4,
       });
+    });
+
+    let resourcesBefore: Record<TrackedResource, bigint>;
+
+    beforeEach(() => {
+      resourcesBefore = liveResources();
+    });
+
+    afterEach(() => {
+      // テスト中に確保されたリソースはすべて解放されているべき
+      expect(liveResources()).toEqual(resourcesBefore);
     });
 
     afterAll(() => {
@@ -223,6 +262,64 @@ describe.runIf(C_COMPILER !== undefined && process.platform !== "win32")(
       } finally {
         client.close();
       }
+    });
+
+    test("リソース生存数のトラッキングが機能する", () => {
+      // 解放を忘れた場合に検知できることを確認する（トラッキング自体の検証）
+      const jsonPtr = functions.voicevox_synthesizer_create_metas_json(synthesizer);
+      expect(liveResources().json).toBe(resourcesBefore.json + 1n);
+      functions.voicevox_json_free(jsonPtr);
+      expect(liveResources().json).toBe(resourcesBefore.json);
+    });
+
+    test("JSON・WAVを返すAPIを繰り返し呼んでも出力バッファが残らない", async () => {
+      for (let i = 0; i < 10; i++) {
+        await createAudioQuery(functions, synthesizer, "テスト", 1);
+        await analyze(functions, openJtalk, "テスト");
+        await tts(functions, synthesizer, "テスト", 1);
+        getSynthesizerMetasJson(functions, synthesizer);
+      }
+      expect(liveResources()).toEqual(resourcesBefore);
+    });
+
+    test("close()でシンセサイザとOpenJTalkが解放される", async () => {
+      const client = await createVoicevoxClient({
+        corePath: libPath,
+        openJtalkDictDir: "/mock/dict",
+      });
+      expect(liveResources()).toMatchObject({
+        open_jtalk: resourcesBefore.open_jtalk + 1n,
+        synthesizer: resourcesBefore.synthesizer + 1n,
+      });
+
+      client.close();
+      expect(liveResources()).toEqual(resourcesBefore);
+
+      // 二重closeで二重解放されない
+      client.close();
+      expect(liveResources()).toEqual(resourcesBefore);
+    });
+
+    test("usingスコープを抜けるとリソースが解放される", async () => {
+      {
+        using _client = await createVoicevoxClient({
+          corePath: libPath,
+          openJtalkDictDir: "/mock/dict",
+        });
+        expect(liveResources().synthesizer).toBe(resourcesBefore.synthesizer + 1n);
+      }
+      expect(liveResources()).toEqual(resourcesBefore);
+    });
+
+    test("シンセサイザの生成に失敗した場合、作成済みのOpenJTalkが解放される", async () => {
+      // モックはcpu_num_threads=UINT16_MAXでシンセサイザ生成を失敗させる
+      const promise = createVoicevoxClient({
+        corePath: libPath,
+        openJtalkDictDir: "/mock/dict",
+        initializeOptions: { cpuNumThreads: 0xffff },
+      });
+      await expect(promise).rejects.toBeInstanceOf(VoicevoxError);
+      expect(liveResources()).toEqual(resourcesBefore);
     });
   },
 );

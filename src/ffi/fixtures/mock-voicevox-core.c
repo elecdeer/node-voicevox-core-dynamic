@@ -4,6 +4,8 @@
  * voicevox_core本体と同じシグネチャ（構造体の値渡し/値返しを含む）を持ち、
  * node:ffiによる宣言・マーシャリング・ABI loweringが正しいことを検証する。
  * 入力を戻り値にエコーバックし、mock_last_*アクセサで受け取った値を確認できる。
+ * また、確保したリソースの生存数をmock_live_*アクセサで確認でき、
+ * ラッパーが解放関数を呼び忘れていないかを検証できる。
  *
  * ffi.test.tsがテスト実行時にコンパイルする。
  */
@@ -38,8 +40,24 @@ typedef struct {
   uint32_t priority;
 } VoicevoxUserDictWord;
 
+/* ==== リソース生存数のトラッキング ==== */
+
+/* 非同期APIはWorkerスレッドから呼ばれるため、カウンタはアトミックに操作する */
+static int64_t live_json = 0;
+static int64_t live_wav = 0;
+static int64_t live_open_jtalk = 0;
+static int64_t live_voice_model = 0;
+static int64_t live_synthesizer = 0;
+static int64_t live_user_dict = 0;
+
+static void track_alloc(int64_t* counter) { __atomic_fetch_add(counter, 1, __ATOMIC_SEQ_CST); }
+static void track_free(int64_t* counter) { __atomic_fetch_sub(counter, 1, __ATOMIC_SEQ_CST); }
+static int64_t live_count(int64_t* counter) { return __atomic_load_n(counter, __ATOMIC_SEQ_CST); }
+
+/* voicevox_json_freeで解放されるべき文字列を確保する */
 static char* dup_string(const char* s) {
   char* p = malloc(strlen(s) + 1);
+  track_alloc(&live_json);
   strcpy(p, s);
   return p;
 }
@@ -58,8 +76,19 @@ const char* voicevox_error_result_to_message(int32_t result_code) {
   return result_code == 0 ? "OK" : "mock error";
 }
 
-void voicevox_json_free(char* json) { free(json); }
-void voicevox_wav_free(uint8_t* wav) { free(wav); }
+void voicevox_json_free(char* json) {
+  if (json != NULL) {
+    track_free(&live_json);
+  }
+  free(json);
+}
+
+void voicevox_wav_free(uint8_t* wav) {
+  if (wav != NULL) {
+    track_free(&live_wav);
+  }
+  free(wav);
+}
 
 /* ==== ONNX Runtime ==== */
 
@@ -110,6 +139,7 @@ int32_t voicevox_open_jtalk_rc_new(const char* open_jtalk_dic_dir, void** out_op
     return 1;
   }
   *out_open_jtalk = malloc(1);
+  track_alloc(&live_open_jtalk);
   return 0;
 }
 
@@ -125,7 +155,10 @@ int32_t voicevox_open_jtalk_rc_analyze(const void* open_jtalk, const char* text,
   return 0;
 }
 
-void voicevox_open_jtalk_rc_delete(void* open_jtalk) { free(open_jtalk); }
+void voicevox_open_jtalk_rc_delete(void* open_jtalk) {
+  track_free(&live_open_jtalk);
+  free(open_jtalk);
+}
 
 /* ==== 音声モデル ==== */
 
@@ -134,6 +167,7 @@ int32_t voicevox_voice_model_file_open(const char* path, void** out_model) {
     return 1;
   }
   *out_model = malloc(1);
+  track_alloc(&live_voice_model);
   return 0;
 }
 
@@ -149,7 +183,10 @@ char* voicevox_voice_model_file_create_metas_json(const void* model) {
   return dup_string("[]");
 }
 
-void voicevox_voice_model_file_delete(void* model) { free(model); }
+void voicevox_voice_model_file_delete(void* model) {
+  track_free(&live_voice_model);
+  free(model);
+}
 
 /* ==== シンセサイザ ==== */
 
@@ -163,16 +200,21 @@ VoicevoxInitializeOptions voicevox_make_default_initialize_options(void) {
 
 int32_t voicevox_synthesizer_new(const void* onnxruntime, const void* open_jtalk,
                                  VoicevoxInitializeOptions options, void** out_synthesizer) {
-  if (onnxruntime == NULL || open_jtalk == NULL) {
+  /* cpu_num_threads=UINT16_MAXは、生成失敗時のリソース解放を検証するためのエラートリガー */
+  if (onnxruntime == NULL || open_jtalk == NULL || options.cpu_num_threads == UINT16_MAX) {
     return 1;
   }
   last_acceleration_mode = options.acceleration_mode;
   last_cpu_num_threads = options.cpu_num_threads;
   *out_synthesizer = malloc(1);
+  track_alloc(&live_synthesizer);
   return 0;
 }
 
-void voicevox_synthesizer_delete(void* synthesizer) { free(synthesizer); }
+void voicevox_synthesizer_delete(void* synthesizer) {
+  track_free(&live_synthesizer);
+  free(synthesizer);
+}
 
 int32_t voicevox_synthesizer_load_voice_model(const void* synthesizer, const void* model) {
   (void)synthesizer;
@@ -294,6 +336,7 @@ static int32_t mock_synthesize(const char* input, uint32_t style_id, bool upspea
                                uintptr_t* output_length, uint8_t** output) {
   size_t len = strlen(input);
   uint8_t* wav = malloc(len + 2);
+  track_alloc(&live_wav);
   wav[0] = upspeak ? 1 : 0;
   wav[1] = (uint8_t)style_id;
   memcpy(wav + 2, input, len);
@@ -342,7 +385,10 @@ static void record_word(const VoicevoxUserDictWord* word) {
   last_word_priority = word->priority;
 }
 
-void* voicevox_user_dict_new(void) { return malloc(1); }
+void* voicevox_user_dict_new(void) {
+  track_alloc(&live_user_dict);
+  return malloc(1);
+}
 
 int32_t voicevox_user_dict_load(const void* user_dict, const char* dict_path) {
   (void)user_dict;
@@ -392,7 +438,10 @@ int32_t voicevox_user_dict_save(const void* user_dict, const char* path) {
   return 0;
 }
 
-void voicevox_user_dict_delete(void* user_dict) { free(user_dict); }
+void voicevox_user_dict_delete(void* user_dict) {
+  track_free(&live_user_dict);
+  free(user_dict);
+}
 
 /* ==== 検証用アクセサ（voicevox_core本体には存在しない） ==== */
 
@@ -404,3 +453,9 @@ const char* mock_last_word_pronunciation(void) { return last_word_pronunciation;
 uint64_t mock_last_word_accent_type(void) { return last_word_accent_type; }
 int32_t mock_last_word_type(void) { return last_word_type; }
 uint32_t mock_last_word_priority(void) { return last_word_priority; }
+int64_t mock_live_json(void) { return live_count(&live_json); }
+int64_t mock_live_wav(void) { return live_count(&live_wav); }
+int64_t mock_live_open_jtalk(void) { return live_count(&live_open_jtalk); }
+int64_t mock_live_voice_model(void) { return live_count(&live_voice_model); }
+int64_t mock_live_synthesizer(void) { return live_count(&live_synthesizer); }
+int64_t mock_live_user_dict(void) { return live_count(&live_user_dict); }
