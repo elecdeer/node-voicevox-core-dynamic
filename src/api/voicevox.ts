@@ -1,5 +1,12 @@
 import { VoicevoxError } from "../errors/voicevox-error.js";
-import { promisifyKoffiAsync, type VoicevoxCoreFunctions } from "../ffi/functions.js";
+import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
+import {
+  allocOutPointer,
+  readOutPointer,
+  packInitializeOptions,
+  unpackInitializeOptions,
+  NULL_POINTER,
+} from "../ffi/native.js";
 import { VoicevoxResultCode } from "../types/enums.js";
 import type { OnnxruntimeHandle, OpenJtalkHandle, SynthesizerHandle } from "../types/handles.js";
 import type { InitializeOptions } from "../types/options.js";
@@ -30,19 +37,20 @@ export async function createSynthesizer(
   openJtalk: OpenJtalkHandle,
   options?: InitializeOptions,
 ): Promise<SynthesizerHandle> {
-  const defaultOptions = functions.voicevox_make_default_initialize_options();
+  const defaultOptions = unpackInitializeOptions(
+    functions.voicevox_make_default_initialize_options(),
+  );
 
-  const initOptions = {
-    acceleration_mode: options?.accelerationMode ?? defaultOptions.acceleration_mode,
-    cpu_num_threads: options?.cpuNumThreads ?? defaultOptions.cpu_num_threads,
-  };
+  const packedOptions = packInitializeOptions(
+    options?.accelerationMode ?? defaultOptions.accelerationMode,
+    options?.cpuNumThreads ?? defaultOptions.cpuNumThreads,
+  );
 
-  const outSynthesizer: [SynthesizerHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_new,
+  const outSynthesizer = allocOutPointer();
+  const resultCode = await functions.voicevox_synthesizer_new.async(
     onnxruntime,
     openJtalk,
-    initOptions,
+    packedOptions,
     outSynthesizer,
   );
 
@@ -51,12 +59,12 @@ export async function createSynthesizer(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const handle = outSynthesizer[0];
-  if (handle == null) {
+  const handle = readOutPointer(outSynthesizer);
+  if (handle === NULL_POINTER) {
     throw new Error("Failed to create synthesizer: null handle returned");
   }
 
-  return handle;
+  return handle as SynthesizerHandle;
 } /**
  * シンセサイザを破棄する
  *

@@ -5,5 +5,7 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // node:ffiを利用可能にする
+    execArgv: ["--experimental-ffi"],
   },
 });

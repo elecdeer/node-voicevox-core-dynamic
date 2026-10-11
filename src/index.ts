@@ -1,7 +1,7 @@
 /**
  * VOICEVOX CORE Node.js Binding
  *
- * koffiを使用したvoicevox_coreのNode.jsバインディング
+ * node:ffiを使用したvoicevox_coreのNode.jsバインディング
  *
  * @packageDocumentation
  */

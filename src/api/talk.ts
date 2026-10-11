@@ -1,6 +1,13 @@
-import koffi from "koffi";
 import { VoicevoxError } from "../errors/voicevox-error.js";
-import { type VoicevoxCoreFunctions, promisifyKoffiAsync } from "../ffi/functions.js";
+import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
+import {
+  allocOutPointer,
+  readOutPointer,
+  readOutSize,
+  readCString,
+  readBytes,
+  NULL_POINTER,
+} from "../ffi/native.js";
 import { VoicevoxResultCode } from "../types/enums.js";
 import type { SynthesizerHandle, OutJsonStringHandle, OutWavDataHandle } from "../types/handles.js";
 import type { AudioQuery } from "../types/models.js";
@@ -23,9 +30,8 @@ export async function createAudioQuery(
   text: string,
   styleId: number,
 ): Promise<AudioQuery> {
-  const outJson: [OutJsonStringHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_create_audio_query,
+  const outJson = allocOutPointer();
+  const resultCode = await functions.voicevox_synthesizer_create_audio_query.async(
     synthesizer,
     text,
     styleId,
@@ -37,15 +43,12 @@ export async function createAudioQuery(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to create JSON: null pointer returned");
   }
 
-  // void*から文字列を取得する
-  // lenに-1を指定することで、null終端文字列として自動的に長さを検出
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
-
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery;
@@ -67,9 +70,8 @@ export async function createAudioQueryFromKana(
   kana: string,
   styleId: number,
 ): Promise<AudioQuery> {
-  const outJson: [OutJsonStringHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_create_audio_query_from_kana,
+  const outJson = allocOutPointer();
+  const resultCode = await functions.voicevox_synthesizer_create_audio_query_from_kana.async(
     synthesizer,
     kana,
     styleId,
@@ -81,12 +83,12 @@ export async function createAudioQueryFromKana(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to create JSON: null pointer returned");
   }
 
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery;
@@ -108,9 +110,8 @@ export async function createAccentPhrases(
   text: string,
   styleId: number,
 ): Promise<AudioQuery["accent_phrases"]> {
-  const outJson: [OutJsonStringHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_create_accent_phrases,
+  const outJson = allocOutPointer();
+  const resultCode = await functions.voicevox_synthesizer_create_accent_phrases.async(
     synthesizer,
     text,
     styleId,
@@ -122,12 +123,12 @@ export async function createAccentPhrases(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to create JSON: null pointer returned");
   }
 
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
@@ -149,9 +150,8 @@ export async function createAccentPhrasesFromKana(
   kana: string,
   styleId: number,
 ): Promise<AudioQuery["accent_phrases"]> {
-  const outJson: [OutJsonStringHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_create_accent_phrases_from_kana,
+  const outJson = allocOutPointer();
+  const resultCode = await functions.voicevox_synthesizer_create_accent_phrases_from_kana.async(
     synthesizer,
     kana,
     styleId,
@@ -163,12 +163,12 @@ export async function createAccentPhrasesFromKana(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to create JSON: null pointer returned");
   }
 
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
@@ -187,9 +187,8 @@ export async function createAudioQueryFromAccentPhrases(
   accentPhrases: AudioQuery["accent_phrases"],
 ): Promise<AudioQuery> {
   const accentPhrasesJson = JSON.stringify(accentPhrases);
-  const outJson: [OutJsonStringHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_audio_query_create_from_accent_phrases,
+  const outJson = allocOutPointer();
+  const resultCode = await functions.voicevox_audio_query_create_from_accent_phrases.async(
     accentPhrasesJson,
     outJson,
   );
@@ -199,12 +198,12 @@ export async function createAudioQueryFromAccentPhrases(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to create JSON: null pointer returned");
   }
 
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery;
@@ -228,23 +227,18 @@ export async function synthesis(
   styleId: number,
   options?: SynthesisOptions,
 ): Promise<Uint8Array> {
-  const defaultOptions = functions.voicevox_make_default_synthesis_options();
-
-  const synthesisOptions = {
-    enable_interrogative_upspeak:
-      options?.enableInterrogativeUpspeak ?? defaultOptions.enable_interrogative_upspeak,
-  };
+  const enableInterrogativeUpspeak =
+    options?.enableInterrogativeUpspeak ?? functions.voicevox_make_default_synthesis_options();
 
   const audioQueryJson = JSON.stringify(audioQuery);
-  const outLength: [number] = [0];
-  const outWav: [OutWavDataHandle | null] = [null];
+  const outLength = allocOutPointer();
+  const outWav = allocOutPointer();
 
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_synthesis,
+  const resultCode = await functions.voicevox_synthesizer_synthesis.async(
     synthesizer,
     audioQueryJson,
     styleId,
-    synthesisOptions,
+    enableInterrogativeUpspeak,
     outLength,
     outWav,
   );
@@ -254,18 +248,13 @@ export async function synthesis(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const wavPtr = outWav[0];
-  if (wavPtr == null) {
+  const wavPtr = readOutPointer(outWav) as OutWavDataHandle;
+  if (wavPtr === NULL_POINTER) {
     throw new Error("Failed to synthesize: null pointer returned");
   }
 
-  const length = outLength[0];
-
-  // WAVデータをUint8Arrayにコピー
-  const wavData = new Uint8Array(length);
-  const srcBuffer = koffi.decode(wavPtr, koffi.array("uint8", length));
-  wavData.set(srcBuffer);
-
+  // WAVデータをコピーしてからC側のメモリを解放する
+  const wavData = readBytes(wavPtr, readOutSize(outLength));
   functions.voicevox_wav_free(wavPtr);
 
   return wavData;
@@ -289,22 +278,17 @@ export async function tts(
   styleId: number,
   options?: TtsOptions,
 ): Promise<Uint8Array> {
-  const defaultOptions = functions.voicevox_make_default_tts_options();
+  const enableInterrogativeUpspeak =
+    options?.enableInterrogativeUpspeak ?? functions.voicevox_make_default_tts_options();
 
-  const ttsOptions = {
-    enable_interrogative_upspeak:
-      options?.enableInterrogativeUpspeak ?? defaultOptions.enable_interrogative_upspeak,
-  };
+  const outLength = allocOutPointer();
+  const outWav = allocOutPointer();
 
-  const outLength: [number] = [0];
-  const outWav: [OutWavDataHandle | null] = [null];
-
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_tts,
+  const resultCode = await functions.voicevox_synthesizer_tts.async(
     synthesizer,
     text,
     styleId,
-    ttsOptions,
+    enableInterrogativeUpspeak,
     outLength,
     outWav,
   );
@@ -314,18 +298,13 @@ export async function tts(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const wavPtr = outWav[0];
-  if (wavPtr == null) {
+  const wavPtr = readOutPointer(outWav) as OutWavDataHandle;
+  if (wavPtr === NULL_POINTER) {
     throw new Error("Failed to synthesize: null pointer returned");
   }
 
-  const length = outLength[0];
-
-  // WAVデータをUint8Arrayにコピー
-  const wavData = new Uint8Array(length);
-  const srcBuffer = koffi.decode(wavPtr, koffi.array("uint8", length));
-  wavData.set(srcBuffer);
-
+  // WAVデータをコピーしてからC側のメモリを解放する
+  const wavData = readBytes(wavPtr, readOutSize(outLength));
   functions.voicevox_wav_free(wavPtr);
 
   return wavData;
@@ -349,22 +328,17 @@ export async function ttsFromKana(
   styleId: number,
   options?: TtsOptions,
 ): Promise<Uint8Array> {
-  const defaultOptions = functions.voicevox_make_default_tts_options();
+  const enableInterrogativeUpspeak =
+    options?.enableInterrogativeUpspeak ?? functions.voicevox_make_default_tts_options();
 
-  const ttsOptions = {
-    enable_interrogative_upspeak:
-      options?.enableInterrogativeUpspeak ?? defaultOptions.enable_interrogative_upspeak,
-  };
+  const outLength = allocOutPointer();
+  const outWav = allocOutPointer();
 
-  const outLength: [number] = [0];
-  const outWav: [OutWavDataHandle | null] = [null];
-
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_tts_from_kana,
+  const resultCode = await functions.voicevox_synthesizer_tts_from_kana.async(
     synthesizer,
     kana,
     styleId,
-    ttsOptions,
+    enableInterrogativeUpspeak,
     outLength,
     outWav,
   );
@@ -374,18 +348,13 @@ export async function ttsFromKana(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const wavPtr = outWav[0];
-  if (wavPtr == null) {
+  const wavPtr = readOutPointer(outWav) as OutWavDataHandle;
+  if (wavPtr === NULL_POINTER) {
     throw new Error("Failed to synthesize: null pointer returned");
   }
 
-  const length = outLength[0];
-
-  // WAVデータをUint8Arrayにコピー
-  const wavData = new Uint8Array(length);
-  const srcBuffer = koffi.decode(wavPtr, koffi.array("uint8", length));
-  wavData.set(srcBuffer);
-
+  // WAVデータをコピーしてからC側のメモリを解放する
+  const wavData = readBytes(wavPtr, readOutSize(outLength));
   functions.voicevox_wav_free(wavPtr);
 
   return wavData;
@@ -408,9 +377,8 @@ export async function replaceMoraData(
   styleId: number,
 ): Promise<AudioQuery["accent_phrases"]> {
   const accentPhrasesJson = JSON.stringify(accentPhrases);
-  const outJson: [OutJsonStringHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_replace_mora_data,
+  const outJson = allocOutPointer();
+  const resultCode = await functions.voicevox_synthesizer_replace_mora_data.async(
     synthesizer,
     accentPhrasesJson,
     styleId,
@@ -422,12 +390,12 @@ export async function replaceMoraData(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to replace mora data: null pointer returned");
   }
 
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
@@ -450,9 +418,8 @@ export async function replacePhonemeLength(
   styleId: number,
 ): Promise<AudioQuery["accent_phrases"]> {
   const accentPhrasesJson = JSON.stringify(accentPhrases);
-  const outJson: [OutJsonStringHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_replace_phoneme_length,
+  const outJson = allocOutPointer();
+  const resultCode = await functions.voicevox_synthesizer_replace_phoneme_length.async(
     synthesizer,
     accentPhrasesJson,
     styleId,
@@ -464,12 +431,12 @@ export async function replacePhonemeLength(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to replace phoneme length: null pointer returned");
   }
 
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
@@ -492,9 +459,8 @@ export async function replaceMoraPitch(
   styleId: number,
 ): Promise<AudioQuery["accent_phrases"]> {
   const accentPhrasesJson = JSON.stringify(accentPhrases);
-  const outJson: [OutJsonStringHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_replace_mora_pitch,
+  const outJson = allocOutPointer();
+  const resultCode = await functions.voicevox_synthesizer_replace_mora_pitch.async(
     synthesizer,
     accentPhrasesJson,
     styleId,
@@ -506,12 +472,12 @@ export async function replaceMoraPitch(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to replace mora pitch: null pointer returned");
   }
 
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];

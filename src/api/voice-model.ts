@@ -3,12 +3,11 @@
  */
 
 import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
-import { promisifyKoffiAsync } from "../ffi/functions.js";
+import { allocOutPointer, readOutPointer, readCString, NULL_POINTER } from "../ffi/native.js";
 import { VoicevoxResultCode } from "../types/enums.js";
 import type { SynthesizerHandle, VoiceModelFileHandle } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
 import { uuidBytesToString, uuidStringToBytes } from "../utils/uuid.js";
-import koffi from "koffi";
 
 /**
  * VVMファイルを開く
@@ -22,24 +21,20 @@ export async function openVoiceModelFile(
   functions: VoicevoxCoreFunctions,
   path: string,
 ): Promise<VoiceModelFileHandle> {
-  const outModel: [VoiceModelFileHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_voice_model_file_open,
-    path,
-    outModel,
-  );
+  const outModel = allocOutPointer();
+  const resultCode = await functions.voicevox_voice_model_file_open.async(path, outModel);
 
   if (resultCode !== VoicevoxResultCode.Ok) {
-    const message = functions.voicevox_error_result_to_message(resultCode) as string;
+    const message = functions.voicevox_error_result_to_message(resultCode);
     throw new VoicevoxError(resultCode, message);
   }
 
-  const handle = outModel[0];
-  if (handle == null) {
+  const handle = readOutPointer(outModel);
+  if (handle === NULL_POINTER) {
     throw new Error("Failed to open voice model file: null handle returned");
   }
 
-  return handle;
+  return handle as VoiceModelFileHandle;
 }
 
 /**
@@ -56,8 +51,7 @@ export async function loadVoiceModel(
   synthesizer: SynthesizerHandle,
   model: VoiceModelFileHandle,
 ): Promise<void> {
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_load_voice_model,
+  const resultCode = await functions.voicevox_synthesizer_load_voice_model.async(
     synthesizer,
     model,
   );
@@ -120,9 +114,7 @@ export function getVoiceModelMetasJson(
 ): string {
   const jsonPtr = functions.voicevox_voice_model_file_create_metas_json(model);
 
-  // void*から文字列を取得する
-  // lenに-1を指定することで、null終端文字列として自動的に長さを検出
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
 
   // C側で確保されたメモリを解放
   functions.voicevox_json_free(jsonPtr);
@@ -173,9 +165,7 @@ export function getSynthesizerMetasJson(
 ): string {
   const jsonPtr = functions.voicevox_synthesizer_create_metas_json(synthesizer);
 
-  // void*から文字列を取得する
-  // lenに-1を指定することで、null終端文字列として自動的に長さを検出
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
 
   functions.voicevox_json_free(jsonPtr);
 

@@ -22,7 +22,8 @@ RUN ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "arm64" || echo "x64") && \
       -o /opt/voicevox
 
 # ステージ2: Node.js環境でテスト実行
-FROM node:24
+# node:ffiのためNode.js >= 26.1.0が必要
+FROM node:26
 
 WORKDIR /app
 
@@ -42,13 +43,14 @@ ENV VOICEVOX_OPEN_JTALK_DICT_DIR=/opt/voicevox/dict
 ENV VOICEVOX_MODELS_PATH=/opt/voicevox/models
 ENV OUTPUT_DIR=/app/output
 
-# pnpmセットアップ
-RUN corepack enable
-RUN which node && node -v
-RUN which pnpm && pnpm -v
-
 # パッケージ関連ファイルをコピー
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# pnpmセットアップ
+# Node.js 25以降はcorepackが同梱されないため、packageManagerのバージョンをnpmで入れる
+RUN npm install -g "$(node -p "require('./package.json').packageManager")"
+RUN which node && node -v
+RUN which pnpm && pnpm -v
 
 # 依存関係をインストール
 RUN pnpm install --frozen-lockfile

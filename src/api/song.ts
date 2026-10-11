@@ -3,7 +3,14 @@
  */
 
 import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
-import { promisifyKoffiAsync } from "../ffi/functions.js";
+import {
+  allocOutPointer,
+  readOutPointer,
+  readOutSize,
+  readCString,
+  readBytes,
+  NULL_POINTER,
+} from "../ffi/native.js";
 import { VoicevoxResultCode } from "../types/enums.js";
 import type {
   SynthesizerHandle,
@@ -13,7 +20,6 @@ import type {
   FrameAudioQuery,
 } from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
-import koffi from "koffi";
 
 /**
  * 楽譜からFrameAudioQueryを生成
@@ -39,9 +45,8 @@ export async function createSingFrameAudioQuery(
   }
 
   const scoreJson = JSON.stringify(score);
-  const outJson: [OutJsonStringHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_create_sing_frame_audio_query,
+  const outJson = allocOutPointer();
+  const resultCode = await functions.voicevox_synthesizer_create_sing_frame_audio_query.async(
     synthesizer,
     scoreJson,
     styleId,
@@ -53,12 +58,12 @@ export async function createSingFrameAudioQuery(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to create JSON: null pointer returned");
   }
 
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as FrameAudioQuery;
@@ -91,9 +96,8 @@ export async function createSingFrameF0(
 
   const scoreJson = JSON.stringify(score);
   const frameAudioQueryJson = JSON.stringify(frameAudioQuery);
-  const outJson: [OutJsonStringHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_create_sing_frame_f0,
+  const outJson = allocOutPointer();
+  const resultCode = await functions.voicevox_synthesizer_create_sing_frame_f0.async(
     synthesizer,
     scoreJson,
     frameAudioQueryJson,
@@ -106,12 +110,12 @@ export async function createSingFrameF0(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to create JSON: null pointer returned");
   }
 
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as number[];
@@ -144,9 +148,8 @@ export async function createSingFrameVolume(
 
   const scoreJson = JSON.stringify(score);
   const frameAudioQueryJson = JSON.stringify(frameAudioQuery);
-  const outJson: [OutJsonStringHandle | null] = [null];
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_create_sing_frame_volume,
+  const outJson = allocOutPointer();
+  const resultCode = await functions.voicevox_synthesizer_create_sing_frame_volume.async(
     synthesizer,
     scoreJson,
     frameAudioQueryJson,
@@ -159,12 +162,12 @@ export async function createSingFrameVolume(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const jsonPtr = outJson[0];
-  if (jsonPtr == null) {
+  const jsonPtr = readOutPointer(outJson) as OutJsonStringHandle;
+  if (jsonPtr === NULL_POINTER) {
     throw new Error("Failed to create JSON: null pointer returned");
   }
 
-  const jsonStr = koffi.decode(jsonPtr, "char", -1) as string;
+  const jsonStr = readCString(jsonPtr);
   functions.voicevox_json_free(jsonPtr);
 
   return JSON.parse(jsonStr) as number[];
@@ -177,7 +180,6 @@ export async function createSingFrameVolume(
  * @param synthesizer - シンセサイザハンドル
  * @param frameAudioQuery - FrameAudioQuery
  * @param styleId - スタイルID
- * @param options - 合成オプション
  * @returns Promise<WAVデータ>
  * @throws {VoicevoxError} 合成に失敗した場合
  * @throws {Error} 関数が利用できない場合（v0.16.4未満）
@@ -195,11 +197,10 @@ export async function frameSynthesis(
   }
 
   const frameAudioQueryJson = JSON.stringify(frameAudioQuery);
-  const outLength: [number] = [0];
-  const outWav: [OutWavDataHandle | null] = [null];
+  const outLength = allocOutPointer();
+  const outWav = allocOutPointer();
 
-  const resultCode = await promisifyKoffiAsync(
-    functions.voicevox_synthesizer_frame_synthesis,
+  const resultCode = await functions.voicevox_synthesizer_frame_synthesis.async(
     synthesizer,
     frameAudioQueryJson,
     styleId,
@@ -212,18 +213,13 @@ export async function frameSynthesis(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const wavPtr = outWav[0];
-  if (wavPtr == null) {
+  const wavPtr = readOutPointer(outWav) as OutWavDataHandle;
+  if (wavPtr === NULL_POINTER) {
     throw new Error("Failed to synthesize: null pointer returned");
   }
 
-  const length = outLength[0];
-
-  // WAVデータをUint8Arrayにコピー
-  const wavData = new Uint8Array(length);
-  const srcBuffer = koffi.decode(wavPtr, koffi.array("uint8", length));
-  wavData.set(srcBuffer);
-
+  // WAVデータをコピーしてからC側のメモリを解放する
+  const wavData = readBytes(wavPtr, readOutSize(outLength));
   functions.voicevox_wav_free(wavPtr);
 
   return wavData;
