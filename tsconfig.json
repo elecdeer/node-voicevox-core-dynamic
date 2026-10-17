@@ -5,6 +5,7 @@
     "moduleResolution": "Node16",
     "lib": ["ES2022", "esnext.disposable"],
     "strict": true,
+    "types": ["node"],
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,

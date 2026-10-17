@@ -13,7 +13,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { afterAll, beforeAll, describe, expect, test } from "vite-plus/test";
 import {
   createOpenJtalk,
   deleteOpenJtalk,

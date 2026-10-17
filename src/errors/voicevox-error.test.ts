@@ -2,7 +2,7 @@
  * VoicevoxErrorのテスト
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { VoicevoxError } from "./voicevox-error.js";
 import { VoicevoxResultCode } from "../types/enums.js";
 

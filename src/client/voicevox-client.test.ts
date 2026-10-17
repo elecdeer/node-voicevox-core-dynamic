@@ -2,7 +2,7 @@
  * VoicevoxClient型テスト
  */
 
-import { describe, test } from "vitest";
+import { describe, test } from "vite-plus/test";
 import type { VoicevoxClient } from "./types.js";
 
 describe("VoicevoxClient型テスト", () => {

@@ -24,28 +24,26 @@
     }
   },
   "scripts": {
-    "build": "tsdown",
-    "lint": "oxlint --type-aware --type-check",
-    "lint:fix": "oxlint --type-aware --type-check --fix-suggestions",
-    "format": "oxfmt",
-    "format:check": "oxfmt --check",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:e2e": "vitest run --config vitest.config.e2e.ts",
-    "test:e2e:watch": "vitest --config vitest.config.e2e.ts",
+    "build": "vp pack",
+    "lint": "vp lint",
+    "lint:fix": "vp lint --fix-suggestions",
+    "format": "vp fmt",
+    "format:check": "vp fmt --check",
+    "check": "vp check",
+    "test": "vp test run",
+    "test:watch": "vp test",
+    "test:e2e": "vp test run --config vitest.config.e2e.ts",
+    "test:e2e:watch": "vp test --config vitest.config.e2e.ts",
     "test:e2e:docker": "docker compose -f docker-compose.e2e.yml up --build --exit-code-from e2e-test"
   },
   "devDependencies": {
     "@types/node": "^26.0.0",
     "@typescript/native-preview": "^7.0.0-dev.20260204.1",
-    "@vitest/ui": "^4.0.18",
-    "oxfmt": "^0.28.0",
-    "oxlint": "^1.43.0",
-    "oxlint-tsgolint": "^0.11.4",
-    "tsdown": "^0.20.1",
+    "@vitest/ui": "catalog:",
     "typescript": "^5.7.3",
     "valibot": "^1.2.0",
-    "vitest": "^4.0.18"
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
   },
   "devEngines": {
     "runtime": {

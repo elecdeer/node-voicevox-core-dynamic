@@ -2,7 +2,7 @@
  * 列挙型のテスト
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { VoicevoxAccelerationMode, VoicevoxResultCode, VoicevoxUserDictWordType } from "./enums.js";
 
 describe("VoicevoxAccelerationMode", () => {
