@@ -118,7 +118,7 @@ export async function analyze(
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return jsonStr;
 }
@@ -282,7 +282,7 @@ export function userDictToJson(functions: VoicevoxCoreFunctions, userDict: UserD
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return jsonStr;
 }

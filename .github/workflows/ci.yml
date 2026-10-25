@@ -67,7 +67,7 @@ jobs:
           load: true
           tags: node-voicevox-core-dynamic-e2e:latest
           build-args: |
-            VOICEVOX_CORE_VERSION=0.16.4
+            VOICEVOX_CORE_VERSION=0.17.1
           cache-from: type=gha,scope=e2e-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=e2e-${{ matrix.arch }}
 

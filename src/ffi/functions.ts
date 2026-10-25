@@ -5,24 +5,29 @@
  */
 
 import type {
+  AudioFeatureHandle,
   OnnxruntimeHandle,
   OpenJtalkHandle,
   SynthesizerHandle,
   VoiceModelFileHandle,
   UserDictHandle,
   OutJsonStringHandle,
-  OutWavDataHandle,
+  OutBytesHandle,
   VoicevoxResultCode,
 } from "../types/index.js";
 import { AsyncDispatcher, type NativeSignature } from "./async-dispatcher.js";
 import {
+  AUDIO_FEATURE_SLICE_SIZE,
   getNodeFfi,
+  getStructPassingAbi,
   readCString,
   NULL_POINTER,
+  SYSV_X64_INTEGER_REGISTER_COUNT,
   type FfiType,
   type FunctionSignature,
   type NativeLibrary,
   type NodeFfiModule,
+  type StructPassingAbi,
 } from "./native.js";
 import { FUNCTION_SIGNATURES, type FunctionName } from "./signatures.js";
 
@@ -49,14 +54,19 @@ export type FfiFunction<TArgs extends readonly unknown[], TReturn> = ((
  *
  * `_Out_`ポインタ引数には`allocOutPointer()`で確保したBufferを渡し、
  * 呼び出し後に`readOutPointer()`で値を読み取る（native.tsを参照）。
+ *
+ * `VoicevoxAudioFeatureSlice`は`AUDIO_FEATURE_SLICE_SIZE`バイトのUint8Arrayとして
+ * 受け渡しする（`voicevox_audio_feature_slice`の出力をそのまま渡す）。
  */
 export interface VoicevoxCoreFunctions {
   // ライブラリインスタンス
   lib: NativeLibrary;
 
   // ONNX Runtime関連
-  voicevox_get_onnxruntime_lib_versioned_filename: FfiFunction<[], string>;
-  voicevox_get_onnxruntime_lib_unversioned_filename: FfiFunction<[], string>;
+  voicevox_get_onnxruntime_lib_min_required_minor_version: FfiFunction<[], number>;
+  voicevox_get_onnxruntime_lib_max_supported_minor_version: FfiFunction<[], number>;
+  voicevox_get_onnxruntime_lib_recommended_versioned_filename: FfiFunction<[], string>;
+  voicevox_get_onnxruntime_lib_recommended_unversioned_filename: FfiFunction<[], string>;
   /** デフォルトの`VoicevoxLoadOnnxruntimeOptions`のfilename（構造体をloweringして文字列を返す） */
   voicevox_make_default_load_onnxruntime_options: FfiFunction<[], string>;
   voicevox_onnxruntime_get: FfiFunction<[], OnnxruntimeHandle>;
@@ -108,8 +118,11 @@ export interface VoicevoxCoreFunctions {
     VoicevoxResultCode
   >;
   voicevox_synthesizer_delete: FfiFunction<[synthesizer: SynthesizerHandle], void>;
+  /** デフォルトの`VoicevoxLoadVoiceModelOptions.on_existing` */
+  voicevox_make_default_load_voice_model_options: FfiFunction<[], number>;
+  /** `VoicevoxLoadVoiceModelOptions`はon_existingのi32としてloweringされている */
   voicevox_synthesizer_load_voice_model: FfiFunction<
-    [synthesizer: SynthesizerHandle, model: VoiceModelFileHandle],
+    [synthesizer: SynthesizerHandle, model: VoiceModelFileHandle, onExisting: number],
     VoicevoxResultCode
   >;
   voicevox_synthesizer_unload_voice_model: FfiFunction<
@@ -164,6 +177,16 @@ export interface VoicevoxCoreFunctions {
     VoicevoxResultCode
   >;
 
+  // フレーム長
+  voicevox_get_frame_rate: FfiFunction<[], number>;
+  /** デフォルトの`VoicevoxAudioQueryFrameLengthOptions.enable_interrogative_upspeak` */
+  voicevox_make_default_audio_query_frame_length_options: FfiFunction<[], boolean>;
+  /** `VoicevoxAudioQueryFrameLengthOptions`はenable_interrogative_upspeakのbooleanとしてloweringされている */
+  voicevox_audio_query_frame_length: FfiFunction<
+    [audioQueryJson: string, enableInterrogativeUpspeak: boolean, outFrameLength: Buffer],
+    VoicevoxResultCode
+  >;
+
   // 音声合成
   /** デフォルトの`VoicevoxSynthesisOptions.enable_interrogative_upspeak` */
   voicevox_make_default_synthesis_options: FfiFunction<[], boolean>;
@@ -203,32 +226,97 @@ export interface VoicevoxCoreFunctions {
     ],
     VoicevoxResultCode
   >;
+  /** pcmは非ヌルでなければならない（空のPCMでも長さ1以上のBufferを渡す） */
+  voicevox_wav_from_s16le: FfiFunction<
+    [
+      pcmLength: number,
+      pcm: Uint8Array,
+      samplingRate: number,
+      isStereo: boolean,
+      outLength: Buffer,
+      outWav: Buffer,
+    ],
+    void
+  >;
+
+  // ストリーミング音声合成（AudioFeature）
+  /** `VoicevoxSynthesisOptions`はenable_interrogative_upspeakのbooleanとしてloweringされている */
+  voicevox_synthesizer_create_audio_feature: FfiFunction<
+    [
+      synthesizer: SynthesizerHandle,
+      audioQueryJson: string,
+      styleId: number,
+      enableInterrogativeUpspeak: boolean,
+      outAudioFeature: Buffer,
+    ],
+    VoicevoxResultCode
+  >;
+  /** 総フレーム数（uintptr_t） */
+  voicevox_audio_feature_len: FfiFunction<[audioFeature: AudioFeatureHandle], bigint>;
+  voicevox_audio_feature_is_empty: FfiFunction<[audioFeature: AudioFeatureHandle], boolean>;
+  /** outSliceには`AUDIO_FEATURE_SLICE_SIZE`バイトのBufferを渡す */
+  voicevox_audio_feature_slice: FfiFunction<
+    [
+      audioFeature: AudioFeatureHandle,
+      startInclusive: bigint,
+      end: bigint,
+      endIsInclusive: boolean,
+      clamp: boolean,
+      allowStartExceedsEnd: boolean,
+      outSlice: Buffer,
+    ],
+    VoicevoxResultCode
+  >;
+  voicevox_audio_feature_slice_len: FfiFunction<
+    [slice: Uint8Array, outLength: Buffer],
+    VoicevoxResultCode
+  >;
+  /** outIsEmptyには1バイト以上のBufferを渡す */
+  voicevox_audio_feature_slice_is_empty: FfiFunction<
+    [slice: Uint8Array, outIsEmpty: Buffer],
+    VoicevoxResultCode
+  >;
+  voicevox_audio_feature_slice_slice: FfiFunction<
+    [
+      slice: Uint8Array,
+      startInclusive: bigint,
+      end: bigint,
+      endIsInclusive: boolean,
+      clamp: boolean,
+      allowStartExceedsEnd: boolean,
+      outSlice: Buffer,
+    ],
+    VoicevoxResultCode
+  >;
+  /** 出力が0バイトのとき、outPcmには解放してはならない`voicevox_empty_bytes`が書き込まれる */
+  voicevox_synthesizer_render: FfiFunction<
+    [synthesizer: SynthesizerHandle, slice: Uint8Array, outLength: Buffer, outPcm: Buffer],
+    VoicevoxResultCode
+  >;
+  voicevox_audio_feature_delete: FfiFunction<[audioFeature: AudioFeatureHandle], void>;
 
   // バリデーション
-  // Note: これらの関数は新しいバージョンのvoicevox_coreで追加されたため、
-  // 古いバージョンでは利用できません。存在しない場合はundefinedになります。
-  voicevox_audio_query_validate?: FfiFunction<[audioQueryJson: string], VoicevoxResultCode>;
-  voicevox_accent_phrase_validate?: FfiFunction<[accentPhraseJson: string], VoicevoxResultCode>;
-  voicevox_mora_validate?: FfiFunction<[moraJson: string], VoicevoxResultCode>;
-  voicevox_score_validate?: FfiFunction<[scoreJson: string], VoicevoxResultCode>;
-  voicevox_note_validate?: FfiFunction<[noteJson: string], VoicevoxResultCode>;
-  voicevox_frame_audio_query_validate?: FfiFunction<
+  voicevox_audio_query_validate: FfiFunction<[audioQueryJson: string], VoicevoxResultCode>;
+  voicevox_accent_phrase_validate: FfiFunction<[accentPhraseJson: string], VoicevoxResultCode>;
+  voicevox_mora_validate: FfiFunction<[moraJson: string], VoicevoxResultCode>;
+  voicevox_score_validate: FfiFunction<[scoreJson: string], VoicevoxResultCode>;
+  voicevox_note_validate: FfiFunction<[noteJson: string], VoicevoxResultCode>;
+  voicevox_frame_audio_query_validate: FfiFunction<
     [frameAudioQueryJson: string],
     VoicevoxResultCode
   >;
-  voicevox_frame_phoneme_validate?: FfiFunction<[framePhonemeJson: string], VoicevoxResultCode>;
-  voicevox_ensure_compatible?: FfiFunction<
+  voicevox_frame_phoneme_validate: FfiFunction<[framePhonemeJson: string], VoicevoxResultCode>;
+  voicevox_ensure_compatible: FfiFunction<
     [query1Json: string, query2Json: string],
     VoicevoxResultCode
   >;
 
   // 歌唱音声合成
-  // Note: これらの関数はv0.16.4以降で追加されたため、古いバージョンでは利用できません。
-  voicevox_synthesizer_create_sing_frame_audio_query?: FfiFunction<
+  voicevox_synthesizer_create_sing_frame_audio_query: FfiFunction<
     [synthesizer: SynthesizerHandle, scoreJson: string, styleId: number, outJson: Buffer],
     VoicevoxResultCode
   >;
-  voicevox_synthesizer_create_sing_frame_f0?: FfiFunction<
+  voicevox_synthesizer_create_sing_frame_f0: FfiFunction<
     [
       synthesizer: SynthesizerHandle,
       scoreJson: string,
@@ -238,7 +326,7 @@ export interface VoicevoxCoreFunctions {
     ],
     VoicevoxResultCode
   >;
-  voicevox_synthesizer_create_sing_frame_volume?: FfiFunction<
+  voicevox_synthesizer_create_sing_frame_volume: FfiFunction<
     [
       synthesizer: SynthesizerHandle,
       scoreJson: string,
@@ -248,7 +336,7 @@ export interface VoicevoxCoreFunctions {
     ],
     VoicevoxResultCode
   >;
-  voicevox_synthesizer_frame_synthesis?: FfiFunction<
+  voicevox_synthesizer_frame_synthesis: FfiFunction<
     [
       synthesizer: SynthesizerHandle,
       frameAudioQueryJson: string,
@@ -295,8 +383,8 @@ export interface VoicevoxCoreFunctions {
   // ユーティリティ
   voicevox_get_version: FfiFunction<[], string>;
   voicevox_error_result_to_message: FfiFunction<[resultCode: VoicevoxResultCode], string>;
-  voicevox_json_free: FfiFunction<[json: OutJsonStringHandle], void>;
-  voicevox_wav_free: FfiFunction<[wav: OutWavDataHandle], void>;
+  voicevox_string_free: FfiFunction<[string: OutJsonStringHandle], void>;
+  voicevox_bytes_free: FfiFunction<[bytes: OutBytesHandle], void>;
 }
 
 /**
@@ -315,12 +403,56 @@ function toNativeType(type: FfiType): string {
 
 /**
  * シグネチャをnode:ffiにそのまま渡せる形に変換する
+ *
+ * `audio_feature_slice`引数はABIに合わせて展開する:
+ * - `indirect`: その位置に`pointer`を1個置く
+ * - `sysv-x64`: 構造体以外の引数を先に並べ、残りの整数レジスタをダミーの`u64`で埋めた後に
+ *   構造体を`u64`×4として並べる。こうすると構造体の8バイトずつがスタックに順に積まれ、
+ *   構造体をMEMORYクラスとして値渡しした場合と同じ配置になる
+ *
+ * @throws {Error} 構造体の値渡しをloweringできないシグネチャの場合
  */
-function toNativeSignature(signature: FunctionSignature): NativeSignature {
-  return {
-    return: toNativeType(signature.return),
-    arguments: signature.arguments.map(toNativeType),
-  };
+export function toNativeSignature(
+  signature: FunctionSignature,
+  abi: StructPassingAbi | undefined,
+): NativeSignature {
+  const returnType = toNativeType(signature.return);
+  const structCount = signature.arguments.filter((t) => t === "audio_feature_slice").length;
+  if (structCount === 0) {
+    return { return: returnType, arguments: signature.arguments.map(toNativeType) };
+  }
+
+  if (abi === undefined) {
+    throw new Error(
+      `Passing VoicevoxAudioFeatureSlice by value is not supported on ${process.platform}-${process.arch}`,
+    );
+  }
+  if (abi === "indirect") {
+    return {
+      return: returnType,
+      arguments: signature.arguments.map((t) =>
+        t === "audio_feature_slice" ? "pointer" : toNativeType(t),
+      ),
+    };
+  }
+
+  const registerArgs = signature.arguments
+    .filter((t) => t !== "audio_feature_slice")
+    .map(toNativeType);
+  // 浮動小数点数はSSEレジスタに割り当てられ、整数レジスタの数え方が変わるため対象外とする
+  if (
+    structCount > 1 ||
+    registerArgs.length > SYSV_X64_INTEGER_REGISTER_COUNT ||
+    registerArgs.includes("f64")
+  ) {
+    throw new Error("Unsupported signature for passing VoicevoxAudioFeatureSlice by value");
+  }
+  const padding = Array.from(
+    { length: SYSV_X64_INTEGER_REGISTER_COUNT - registerArgs.length },
+    () => "u64",
+  );
+  const structWords = Array.from({ length: AUDIO_FEATURE_SLICE_SIZE / 8 }, () => "u64");
+  return { return: returnType, arguments: [...registerArgs, ...padding, ...structWords] };
 }
 
 /**
@@ -329,12 +461,15 @@ function toNativeSignature(signature: FunctionSignature): NativeSignature {
  * `keepAlive`は引数が参照するメモリのBuffer群。ネイティブ呼び出しが完了するまで
  * 参照を保持してGCを防ぐこと（同期呼び出しはJSスレッドがブロックされるため安全。
  * 非同期呼び出しはAsyncDispatcherが完了まで保持する）。
+ *
+ * 戻り値の`values`は`toNativeSignature`で展開した引数の並びに対応する。
  */
-function marshalArguments(
+export function marshalArguments(
   name: string,
   types: readonly FfiType[],
   args: readonly unknown[],
   ffi: NodeFfiModule,
+  abi: StructPassingAbi | undefined,
 ): { values: (number | bigint)[]; keepAlive: ArrayBufferView[] } {
   if (args.length !== types.length) {
     throw new TypeError(`${name}: expected ${types.length} arguments, got ${args.length}`);
@@ -342,6 +477,8 @@ function marshalArguments(
 
   const values: (number | bigint)[] = [];
   const keepAlive: ArrayBufferView[] = [];
+  /** `sysv-x64`でスタックに積む構造体の8バイトずつの値 */
+  let stackWords: bigint[] | undefined;
 
   for (const [index, type] of types.entries()) {
     const arg = args[index];
@@ -382,6 +519,8 @@ function marshalArguments(
         values.push(arg);
         break;
       }
+      // node:ffiのbool引数はbooleanではなく0/1の数値を受け付ける
+      case "bool":
       case "bool_u8": {
         if (typeof arg !== "boolean") {
           throw new TypeError(`${name}: argument ${index} must be a boolean`);
@@ -389,11 +528,36 @@ function marshalArguments(
         values.push(arg ? 1 : 0);
         break;
       }
+      case "audio_feature_slice": {
+        if (!(arg instanceof Uint8Array) || arg.byteLength !== AUDIO_FEATURE_SLICE_SIZE) {
+          throw new TypeError(
+            `${name}: argument ${index} must be a Uint8Array of ${AUDIO_FEATURE_SLICE_SIZE} bytes`,
+          );
+        }
+        // 呼び出し元のBufferを書き換えずに済むよう、ABIが要求する「呼び出し元のコピー」を作る
+        const copy = Buffer.from(arg);
+        if (abi === "sysv-x64") {
+          stackWords = Array.from({ length: AUDIO_FEATURE_SLICE_SIZE / 8 }, (_, i) =>
+            copy.readBigUInt64LE(i * 8),
+          );
+        } else {
+          keepAlive.push(copy);
+          values.push(ffi.getRawPointer(copy));
+        }
+        break;
+      }
       default:
         throw new TypeError(`${name}: type "${type}" is not supported as an argument`);
     }
   }
 
+  if (stackWords !== undefined) {
+    const padding = Array.from(
+      { length: SYSV_X64_INTEGER_REGISTER_COUNT - values.length },
+      () => 0n,
+    );
+    return { values: [...values, ...padding, ...stackWords], keepAlive };
+  }
   return { values, keepAlive };
 }
 
@@ -420,29 +584,23 @@ function convertReturnValue(type: FfiType, raw: unknown): unknown {
 function createFunction(
   name: string,
   signature: FunctionSignature,
+  nativeSignature: NativeSignature,
   lib: NativeLibrary,
   dispatcher: AsyncDispatcher,
   ffi: NodeFfiModule,
-): FfiFunction<unknown[], unknown> | undefined {
-  let nativeFn: (...args: unknown[]) => unknown;
-  try {
-    nativeFn = lib.getFunction(name, toNativeSignature(signature));
-  } catch (error) {
-    if (signature.optional === true) {
-      return undefined;
-    }
-    throw error;
-  }
+  abi: StructPassingAbi | undefined,
+): FfiFunction<unknown[], unknown> {
+  const nativeFn = lib.getFunction(name, nativeSignature);
 
   const syncCall = (...args: unknown[]): unknown => {
     // 同期呼び出し中はJSスレッドがブロックされGCが走らないため、
     // marshalArgumentsのkeepAliveはこのスコープで保持されていれば十分
-    const { values } = marshalArguments(name, signature.arguments, args, ffi);
+    const { values } = marshalArguments(name, signature.arguments, args, ffi, abi);
     return convertReturnValue(signature.return, nativeFn(...values));
   };
 
   const asyncCall = async (...args: unknown[]): Promise<unknown> => {
-    const { values, keepAlive } = marshalArguments(name, signature.arguments, args, ffi);
+    const { values, keepAlive } = marshalArguments(name, signature.arguments, args, ffi, abi);
     const raw = await dispatcher.call(name, values, keepAlive);
     return convertReturnValue(signature.return, raw);
   };
@@ -456,19 +614,24 @@ function createFunction(
  * @param lib - node:ffiのDynamicLibraryインスタンス
  * @param libPath - ロード済みライブラリのパス（Workerスレッドが再ロードするために使用）
  * @returns C API関数群
+ * @throws {Error} シンボルが見つからない場合（voicevox_core v0.17.1以降が必要）
  */
 export function declareFunctions(lib: NativeLibrary, libPath: string): VoicevoxCoreFunctions {
   const ffi = getNodeFfi();
+  const abi = getStructPassingAbi();
 
-  const nativeSignatures: Record<string, NativeSignature> = {};
-  for (const [name, signature] of Object.entries(FUNCTION_SIGNATURES)) {
-    nativeSignatures[name] = toNativeSignature(signature);
-  }
-  const dispatcher = new AsyncDispatcher(libPath, nativeSignatures);
+  const entries = (Object.keys(FUNCTION_SIGNATURES) as FunctionName[]).map((name) => {
+    const signature = FUNCTION_SIGNATURES[name];
+    return { name, signature, nativeSignature: toNativeSignature(signature, abi) };
+  });
+  const dispatcher = new AsyncDispatcher(
+    libPath,
+    Object.fromEntries(entries.map(({ name, nativeSignature }) => [name, nativeSignature])),
+  );
 
   const functions: Record<string, unknown> = { lib };
-  for (const name of Object.keys(FUNCTION_SIGNATURES) as FunctionName[]) {
-    functions[name] = createFunction(name, FUNCTION_SIGNATURES[name], lib, dispatcher, ffi);
+  for (const { name, signature, nativeSignature } of entries) {
+    functions[name] = createFunction(name, signature, nativeSignature, lib, dispatcher, ffi, abi);
   }
 
   return functions as unknown as VoicevoxCoreFunctions;

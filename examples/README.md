@@ -5,7 +5,7 @@
 ## 前提条件
 
 1. Node.js >= 26.1.0（`node:ffi`を使用するため`--experimental-ffi`フラグが必要）
-2. voicevox_coreライブラリをダウンロードして配置
+2. voicevox_coreライブラリ（v0.17.1以降）をダウンロードして配置
 3. 音声モデル（VVMファイル）を配置
 
 各サンプルコードでは、高レベルAPIを使用しており、ライブラリパスを直接指定します。
@@ -80,7 +80,7 @@ NODE_OPTIONS="--experimental-ffi" pnpm tsx --env-file=.env examples/multiple-mod
 
 ### 5. singing.ts - 歌唱音声合成
 
-歌唱音声合成機能を使用する例です（v0.16.4以降）。
+歌唱音声合成機能を使用する例です。
 楽譜（Score）から歌声を生成できます。
 
 ```bash
@@ -99,7 +99,24 @@ NODE_OPTIONS="--experimental-ffi" pnpm tsx --env-file=.env examples/singing.ts
 **注意:**
 
 - 歌唱音声合成には、歌唱対応モデル（`singing_teacher`、`frame_decode`、または`sing`スタイルを持つモデル）が必要です
-- voicevox_core v0.16.4以降が必要です
+
+### 6. streaming.ts - ストリーミング音声合成
+
+音声を少しずつ生成し、生成できた部分からファイルに書き出す例です。
+
+```bash
+NODE_OPTIONS="--experimental-ffi" pnpm tsx --env-file=.env examples/streaming.ts
+```
+
+**学べること:**
+
+- AudioQueryからの音声の長さの見積もり（`client.getAudioQueryFrameLength`）
+- ストリーミング音声合成（`client.streamingSynthesis`）
+- 最初のチャンクが届くまでの時間の確認
+
+**注意:**
+
+- 新形式（`vvm_format_version=2`）のVVMが必要です
 
 ## ディレクトリ構造の例
 

@@ -21,6 +21,29 @@ export type VoicevoxAccelerationMode =
   (typeof VoicevoxAccelerationMode)[keyof typeof VoicevoxAccelerationMode];
 
 /**
+ * 音声モデルのロード時に、同じIDの音声モデルが既に読み込まれていたときのふるまい
+ */
+export const VoicevoxOnExistingVoiceModelId = {
+  /** エラーにする（デフォルト） */
+  Error: 0,
+  /**
+   * 再読み込みする
+   *
+   * 長文のテキストを一度に音声合成するとCPU/GPUメモリが大量に占有されたままになるが、
+   * 再読み込みを行うとメモリの使用量が元に戻る
+   */
+  Reload: 1,
+  /** 何もしない */
+  Skip: 2,
+} as const;
+
+/**
+ * 音声モデルのロード時に、同じIDの音声モデルが既に読み込まれていたときのふるまい型
+ */
+export type VoicevoxOnExistingVoiceModelId =
+  (typeof VoicevoxOnExistingVoiceModelId)[keyof typeof VoicevoxOnExistingVoiceModelId];
+
+/**
  * 処理結果コード
  */
 export const VoicevoxResultCode = {
@@ -55,7 +78,7 @@ export const VoicevoxResultCode = {
   /** ZIP内のファイルが読めなかった */
   ReadZipEntryError: 17,
   /** モデルの形式が不正 */
-  InvalidModelHeaderError: 28,
+  InvalidModelFormatError: 28,
   /** すでに読み込まれている音声モデルを読み込もうとした */
   ModelAlreadyLoadedError: 18,
   /** すでに読み込まれているスタイルを読み込もうとした */
@@ -86,6 +109,12 @@ export const VoicevoxResultCode = {
   InvalidFramePhonemeError: 34,
   /** 互換性のないクエリ */
   IncompatibleQueriesError: 35,
+  /** AudioFeatureSliceをスライスするときの始端が大きすぎた */
+  StartOutOfBoundsError: 36,
+  /** AudioFeatureSliceをスライスするときの終端が大きすぎた */
+  EndOutOfBoundsError: 37,
+  /** AudioFeatureSliceをスライスするときに始端が終端を超えていた */
+  StartExceedsEndError: 38,
 } as const;
 
 /**

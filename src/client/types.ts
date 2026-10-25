@@ -3,9 +3,12 @@
  */
 
 import type {
+  AudioFeatureHandle,
+  AudioQueryFrameLengthOptions,
   InitializeOptions,
   OnnxruntimeHandle,
   OpenJtalkHandle,
+  StreamingSynthesisOptions,
   SynthesizerHandle,
   SynthesisOptions,
   TtsOptions,
@@ -27,8 +30,9 @@ export interface StyleMeta {
    * singing_teacher: 歌唱音声合成用のクエリの作成が可能
    * frame_decode: 歌唱音声合成が可能
    * sing: 歌唱音声合成用のクエリの作成と歌唱音声合成が可能
+   * streaming_talk: 音声合成クエリの作成と通常ないしストリーミングでの音声合成が可能（talkの機能を包含）
    */
-  type: "talk" | "singing_teacher" | "frame_decode" | "sing";
+  type: "talk" | "singing_teacher" | "frame_decode" | "sing" | "streaming_talk";
   order: number;
 }
 
@@ -89,6 +93,42 @@ export interface VoicevoxClientOptions {
    * 初期化オプション
    */
   initializeOptions?: InitializeOptions;
+}
+
+/**
+ * 音声合成用の中間表現
+ *
+ * `VoicevoxClient.createAudioFeature`で作成する。`using` 宣言で使用可能
+ */
+export interface AudioFeature extends Disposable {
+  /**
+   * 総フレーム数
+   *
+   * 音声の秒数は`length / VOICEVOX_FRAME_RATE`で表せる
+   */
+  readonly length: number;
+
+  /**
+   * 中間表現ハンドル
+   */
+  readonly handle: AudioFeatureHandle;
+
+  /**
+   * 指定区間から16bit PCM（signed 16-bit little endian）を生成する
+   *
+   * @param start - 開始フレーム番号（含む）。省略時は先頭から
+   * @param end - 終了フレーム番号（含まない）。省略時は末尾まで
+   * @returns PCMデータ
+   */
+  render(start?: number, end?: number): Promise<Uint8Array>;
+
+  /**
+   * 中間表現を破棄する
+   *
+   * 生成中の`render`がある場合は、その完了後に破棄される。
+   * 冪等性が保証されており、複数回呼び出しても安全
+   */
+  close(): void;
 }
 
 /**
@@ -201,6 +241,54 @@ export interface VoicevoxClient extends Disposable {
     styleId: number,
     options?: SynthesisOptions,
   ): Promise<Uint8Array>;
+
+  // ストリーミング音声合成
+
+  /**
+   * AudioQueryから音声を少しずつ合成する
+   *
+   * 最初の要素はWAVの先頭部分（ヘッダ）で、以降は16bit PCMを少しずつ返します。
+   * すべての要素を連結するとWAVファイルになります。
+   *
+   * 新形式（`vvm_format_version=2`）のVVMが必要です。
+   *
+   * @param audioQuery - AudioQuery
+   * @param styleId - スタイルID
+   * @param options - ストリーミング音声合成オプション
+   * @returns WAVヘッダとPCMデータを順に返すAsyncGenerator
+   */
+  streamingSynthesis(
+    audioQuery: AudioQuery,
+    styleId: number,
+    options?: StreamingSynthesisOptions,
+  ): AsyncGenerator<Uint8Array, void, undefined>;
+
+  /**
+   * AudioQueryから音声合成用の中間表現を作成する
+   *
+   * 音声合成の区切り方を細かく制御したい場合に使用します。
+   *
+   * @param audioQuery - AudioQuery
+   * @param styleId - スタイルID
+   * @param options - 合成オプション
+   * @returns 中間表現
+   */
+  createAudioFeature(
+    audioQuery: AudioQuery,
+    styleId: number,
+    options?: SynthesisOptions,
+  ): Promise<AudioFeature>;
+
+  /**
+   * AudioQueryから音声の総フレーム数を算出する
+   *
+   * 音声の秒数は`frameLength / VOICEVOX_FRAME_RATE`で表せます。
+   *
+   * @param audioQuery - AudioQuery
+   * @param options - 算出オプション
+   * @returns 総フレーム数
+   */
+  getAudioQueryFrameLength(audioQuery: AudioQuery, options?: AudioQueryFrameLengthOptions): number;
 
   // 歌唱音声合成
 

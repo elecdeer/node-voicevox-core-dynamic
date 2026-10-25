@@ -15,7 +15,7 @@ import { VoicevoxResultCode } from "../types/enums.js";
 import type {
   SynthesizerHandle,
   OutJsonStringHandle,
-  OutWavDataHandle,
+  OutBytesHandle,
   Score,
   FrameAudioQuery,
 } from "../types/index.js";
@@ -30,7 +30,6 @@ import { VoicevoxError } from "../errors/voicevox-error.js";
  * @param styleId - スタイルID
  * @returns Promise<FrameAudioQuery>
  * @throws {VoicevoxError} 生成に失敗した場合
- * @throws {Error} 関数が利用できない場合（v0.16.4未満）
  */
 export async function createSingFrameAudioQuery(
   functions: VoicevoxCoreFunctions,
@@ -38,12 +37,6 @@ export async function createSingFrameAudioQuery(
   score: Score,
   styleId: number,
 ): Promise<FrameAudioQuery> {
-  if (!functions.voicevox_synthesizer_create_sing_frame_audio_query) {
-    throw new Error(
-      "voicevox_synthesizer_create_sing_frame_audio_query is not available. This function requires voicevox_core v0.16.4 or later.",
-    );
-  }
-
   const scoreJson = JSON.stringify(score);
   const outJson = allocOutPointer();
   const resultCode = await functions.voicevox_synthesizer_create_sing_frame_audio_query.async(
@@ -64,7 +57,7 @@ export async function createSingFrameAudioQuery(
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return JSON.parse(jsonStr) as FrameAudioQuery;
 }
@@ -79,7 +72,6 @@ export async function createSingFrameAudioQuery(
  * @param styleId - スタイルID
  * @returns Promise<number[]> フレームごとの基本周波数
  * @throws {VoicevoxError} 生成に失敗した場合
- * @throws {Error} 関数が利用できない場合（v0.16.4未満）
  */
 export async function createSingFrameF0(
   functions: VoicevoxCoreFunctions,
@@ -88,12 +80,6 @@ export async function createSingFrameF0(
   frameAudioQuery: FrameAudioQuery,
   styleId: number,
 ): Promise<number[]> {
-  if (!functions.voicevox_synthesizer_create_sing_frame_f0) {
-    throw new Error(
-      "voicevox_synthesizer_create_sing_frame_f0 is not available. This function requires voicevox_core v0.16.4 or later.",
-    );
-  }
-
   const scoreJson = JSON.stringify(score);
   const frameAudioQueryJson = JSON.stringify(frameAudioQuery);
   const outJson = allocOutPointer();
@@ -116,7 +102,7 @@ export async function createSingFrameF0(
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return JSON.parse(jsonStr) as number[];
 }
@@ -131,7 +117,6 @@ export async function createSingFrameF0(
  * @param styleId - スタイルID
  * @returns Promise<number[]> フレームごとの音量
  * @throws {VoicevoxError} 生成に失敗した場合
- * @throws {Error} 関数が利用できない場合（v0.16.4未満）
  */
 export async function createSingFrameVolume(
   functions: VoicevoxCoreFunctions,
@@ -140,12 +125,6 @@ export async function createSingFrameVolume(
   frameAudioQuery: FrameAudioQuery,
   styleId: number,
 ): Promise<number[]> {
-  if (!functions.voicevox_synthesizer_create_sing_frame_volume) {
-    throw new Error(
-      "voicevox_synthesizer_create_sing_frame_volume is not available. This function requires voicevox_core v0.16.4 or later.",
-    );
-  }
-
   const scoreJson = JSON.stringify(score);
   const frameAudioQueryJson = JSON.stringify(frameAudioQuery);
   const outJson = allocOutPointer();
@@ -168,7 +147,7 @@ export async function createSingFrameVolume(
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return JSON.parse(jsonStr) as number[];
 }
@@ -182,7 +161,6 @@ export async function createSingFrameVolume(
  * @param styleId - スタイルID
  * @returns Promise<WAVデータ>
  * @throws {VoicevoxError} 合成に失敗した場合
- * @throws {Error} 関数が利用できない場合（v0.16.4未満）
  */
 export async function frameSynthesis(
   functions: VoicevoxCoreFunctions,
@@ -190,12 +168,6 @@ export async function frameSynthesis(
   frameAudioQuery: FrameAudioQuery,
   styleId: number,
 ): Promise<Uint8Array> {
-  if (!functions.voicevox_synthesizer_frame_synthesis) {
-    throw new Error(
-      "voicevox_synthesizer_frame_synthesis is not available. This function requires voicevox_core v0.16.4 or later.",
-    );
-  }
-
   const frameAudioQueryJson = JSON.stringify(frameAudioQuery);
   const outLength = allocOutPointer();
   const outWav = allocOutPointer();
@@ -213,14 +185,14 @@ export async function frameSynthesis(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const wavPtr = readOutPointer(outWav) as OutWavDataHandle;
+  const wavPtr = readOutPointer(outWav) as OutBytesHandle;
   if (wavPtr === NULL_POINTER) {
     throw new Error("Failed to synthesize: null pointer returned");
   }
 
   // WAVデータをコピーしてからC側のメモリを解放する
   const wavData = readBytes(wavPtr, readOutSize(outLength));
-  functions.voicevox_wav_free(wavPtr);
+  functions.voicevox_bytes_free(wavPtr);
 
   return wavData;
 }

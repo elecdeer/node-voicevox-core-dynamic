@@ -37,7 +37,7 @@ NODE_OPTIONS="--experimental-ffi" node app.js
 Note: async API calls are dispatched to a single worker thread per loaded library,
 so concurrent async calls are serialized.
 
-### voicevox_core
+### voicevox_core v0.17.1 or later
 
 You need to download voicevox_core library separately:
 
@@ -126,7 +126,37 @@ if (isGpuMode(synthesizer)) {
 }
 ```
 
-### Singing Voice Synthesis (v0.16.4+)
+### Streaming Synthesis
+
+Generate audio little by little so that playback can start a fraction of a second after synthesis begins.
+Requires the new VVM format (`vvm_format_version=2`); the downloader fetches the latest VVMs by default.
+
+```typescript
+import { VOICEVOX_FRAME_RATE } from "node-voicevox-core-dynamic";
+
+const audioQuery = await client.createAudioQuery("こんにちは", styleId);
+
+// Estimate the audio length from the AudioQuery
+const frameLength = client.getAudioQueryFrameLength(audioQuery);
+console.log(`${frameLength / VOICEVOX_FRAME_RATE} seconds`);
+
+// The first chunk is the WAV header, followed by 16-bit PCM chunks (about 0.3 s each by default).
+// Concatenating all chunks yields a complete WAV file.
+for await (const chunk of client.streamingSynthesis(audioQuery, styleId, {
+  segmentLengthInSecs: 0.3,
+})) {
+  output.write(chunk);
+}
+
+// For fine-grained control over segmentation
+using audioFeature = await client.createAudioFeature(audioQuery, styleId);
+const segment = Math.round(0.3 * VOICEVOX_FRAME_RATE);
+for (let start = 0; start < audioFeature.length; start += segment) {
+  const pcm = await audioFeature.render(start, Math.min(start + segment, audioFeature.length));
+}
+```
+
+### Singing Voice Synthesis
 
 ```typescript
 import { createSingFrameAudioQuery, frameSynthesis } from "node-voicevox-core-dynamic";
@@ -153,7 +183,6 @@ const wav = await frameSynthesis(synthesizer, frameAudioQuery, styleId);
 
 **Requirements:**
 
-- voicevox_core v0.16.4 or later
 - Voice model with singing capability (`singing_teacher`, `frame_decode`, or `sing` style)
 
 ## API Reference
@@ -166,10 +195,12 @@ const wav = await frameSynthesis(synthesizer, frameAudioQuery, styleId);
 - `OpenJtalkHandle` - OpenJTalk text analyzer
 - `SynthesizerHandle` - Voice synthesizer
 - `VoiceModelFileHandle` - Voice model file (VVM)
+- `AudioFeatureHandle` - Intermediate representation for streaming synthesis
 
 #### Enums
 
 - `VoicevoxAccelerationMode` - Hardware acceleration mode (Auto, Cpu, Gpu)
+- `VoicevoxOnExistingVoiceModelId` - Behavior when a model with the same ID is already loaded (Error, Reload, Skip)
 - `VoicevoxResultCode` - Result codes for error handling
 - `VoicevoxUserDictWordType` - User dictionary word types
 
@@ -177,8 +208,11 @@ const wav = await frameSynthesis(synthesizer, frameAudioQuery, styleId);
 
 - `LoadOnnxruntimeOptions` - ONNX Runtime loading options
 - `InitializeOptions` - Synthesizer initialization options
+- `LoadVoiceModelOptions` - Voice model loading options
 - `SynthesisOptions` - Audio synthesis options
 - `TtsOptions` - Text-to-speech options
+- `AudioQueryFrameLengthOptions` - Frame length calculation options
+- `StreamingSynthesisOptions` - Streaming synthesis options (start offset and segment length)
 
 #### Data Models
 
@@ -215,7 +249,7 @@ const wav = await frameSynthesis(synthesizer, frameAudioQuery, styleId);
 
 - `createSynthesizer(onnxruntime, openJtalk, options?)` - **async** Create synthesizer
 - `deleteSynthesizer(synthesizer)` - Delete synthesizer
-- `loadVoiceModel(synthesizer, model)` - **async** Load voice model
+- `loadVoiceModel(synthesizer, model, options?)` - **async** Load voice model
 - `unloadVoiceModel(synthesizer, modelId)` - Unload voice model
 - `isGpuMode(synthesizer)` - Check if GPU mode
 - `isLoadedVoiceModel(synthesizer, modelId)` - Check if model is loaded
@@ -227,7 +261,19 @@ const wav = await frameSynthesis(synthesizer, frameAudioQuery, styleId);
 - `synthesis(synthesizer, audioQuery, styleId, options?)` - **async** Synthesize from AudioQuery
 - `tts(synthesizer, text, styleId, options?)` - **async** Direct text-to-speech
 
-#### Singing Voice Synthesis (v0.16.4+)
+#### Streaming Synthesis
+
+- `streamingSynthesis(synthesizer, audioQuery, styleId, options?)` - **async generator** Yield the WAV header and then PCM chunks
+- `createAudioFeature(synthesizer, audioQuery, styleId, options?)` - **async** Create an intermediate representation
+- `getAudioFeatureLength(audioFeature)` - Get the number of frames
+- `renderAudioFeature(synthesizer, audioFeature, start?, end?)` - **async** Render 16-bit PCM for a frame range
+- `deleteAudioFeature(audioFeature)` - Delete an intermediate representation
+- `getAudioQueryFrameLength(audioQuery, options?)` - Calculate the number of frames of an AudioQuery
+- `createWavHeader(pcmLength, samplingRate, isStereo)` - Create a WAV header for 16-bit PCM
+- `wavFromS16le(pcm, samplingRate, isStereo)` - Convert 16-bit PCM to WAV
+- `VOICEVOX_FRAME_RATE` - Frame rate (93.75 frames/s)
+
+#### Singing Voice Synthesis
 
 - `createSingFrameAudioQuery(synthesizer, score, styleId)` - **async** Create FrameAudioQuery from score
 - `createSingFrameF0(synthesizer, score, frameAudioQuery, styleId)` - **async** Generate frame-wise F0

@@ -9,6 +9,7 @@
 // 型定義
 export type {
   // ハンドル型
+  AudioFeatureHandle,
   OnnxruntimeHandle,
   OpenJtalkHandle,
   SynthesizerHandle,
@@ -16,8 +17,11 @@ export type {
   // オプション型
   LoadOnnxruntimeOptions,
   InitializeOptions,
+  LoadVoiceModelOptions,
   SynthesisOptions,
   TtsOptions,
+  AudioQueryFrameLengthOptions,
+  StreamingSynthesisOptions,
   // データモデル型
   AudioQuery,
   AccentPhrase,
@@ -32,6 +36,7 @@ export type {
 // 列挙型
 export {
   VoicevoxAccelerationMode,
+  VoicevoxOnExistingVoiceModelId,
   VoicevoxResultCode,
   VoicevoxUserDictWordType,
 } from "./types/index.js";
@@ -75,11 +80,24 @@ export {
   createSingFrameF0,
   createSingFrameVolume,
   frameSynthesis,
+  // ストリーミング音声合成
+  VOICEVOX_FRAME_RATE,
+  WAV_HEADER_LENGTH,
+  getFrameRate,
+  getAudioQueryFrameLength,
+  createAudioFeature,
+  getAudioFeatureLength,
+  deleteAudioFeature,
+  renderAudioFeature,
+  streamingSynthesis,
+  createWavHeader,
+  wavFromS16le,
 } from "./api/index.js";
 
 // 高レベルAPI
 export { createVoicevoxClient } from "./client/index.js";
 export type {
+  AudioFeature,
   VoicevoxClient,
   VoicevoxClientOptions,
   CharacterMeta,

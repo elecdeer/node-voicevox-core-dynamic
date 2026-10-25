@@ -6,7 +6,7 @@ import * as v from "valibot";
 export const StyleMetaSchema = v.object({
   id: v.number(),
   name: v.string(),
-  type: v.picklist(["talk", "singing_teacher", "frame_decode", "sing"]),
+  type: v.picklist(["talk", "singing_teacher", "frame_decode", "sing", "streaming_talk"]),
   order: v.number(),
 });
 

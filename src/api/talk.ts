@@ -9,7 +9,7 @@ import {
   NULL_POINTER,
 } from "../ffi/native.js";
 import { VoicevoxResultCode } from "../types/enums.js";
-import type { SynthesizerHandle, OutJsonStringHandle, OutWavDataHandle } from "../types/handles.js";
+import type { SynthesizerHandle, OutJsonStringHandle, OutBytesHandle } from "../types/handles.js";
 import type { AudioQuery } from "../types/models.js";
 import type { SynthesisOptions, TtsOptions } from "../types/options.js";
 
@@ -49,7 +49,7 @@ export async function createAudioQuery(
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery;
 }
@@ -89,7 +89,7 @@ export async function createAudioQueryFromKana(
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery;
 }
@@ -129,7 +129,7 @@ export async function createAccentPhrases(
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
 }
@@ -169,7 +169,7 @@ export async function createAccentPhrasesFromKana(
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
 }
@@ -204,7 +204,7 @@ export async function createAudioQueryFromAccentPhrases(
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery;
 }
@@ -248,14 +248,14 @@ export async function synthesis(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const wavPtr = readOutPointer(outWav) as OutWavDataHandle;
+  const wavPtr = readOutPointer(outWav) as OutBytesHandle;
   if (wavPtr === NULL_POINTER) {
     throw new Error("Failed to synthesize: null pointer returned");
   }
 
   // WAVデータをコピーしてからC側のメモリを解放する
   const wavData = readBytes(wavPtr, readOutSize(outLength));
-  functions.voicevox_wav_free(wavPtr);
+  functions.voicevox_bytes_free(wavPtr);
 
   return wavData;
 }
@@ -298,14 +298,14 @@ export async function tts(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const wavPtr = readOutPointer(outWav) as OutWavDataHandle;
+  const wavPtr = readOutPointer(outWav) as OutBytesHandle;
   if (wavPtr === NULL_POINTER) {
     throw new Error("Failed to synthesize: null pointer returned");
   }
 
   // WAVデータをコピーしてからC側のメモリを解放する
   const wavData = readBytes(wavPtr, readOutSize(outLength));
-  functions.voicevox_wav_free(wavPtr);
+  functions.voicevox_bytes_free(wavPtr);
 
   return wavData;
 }
@@ -348,14 +348,14 @@ export async function ttsFromKana(
     throw new VoicevoxError(resultCode, message);
   }
 
-  const wavPtr = readOutPointer(outWav) as OutWavDataHandle;
+  const wavPtr = readOutPointer(outWav) as OutBytesHandle;
   if (wavPtr === NULL_POINTER) {
     throw new Error("Failed to synthesize: null pointer returned");
   }
 
   // WAVデータをコピーしてからC側のメモリを解放する
   const wavData = readBytes(wavPtr, readOutSize(outLength));
-  functions.voicevox_wav_free(wavPtr);
+  functions.voicevox_bytes_free(wavPtr);
 
   return wavData;
 }
@@ -396,7 +396,7 @@ export async function replaceMoraData(
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
 }
@@ -437,7 +437,7 @@ export async function replacePhonemeLength(
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
 }
@@ -478,7 +478,7 @@ export async function replaceMoraPitch(
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return JSON.parse(jsonStr) as AudioQuery["accent_phrases"];
 }
