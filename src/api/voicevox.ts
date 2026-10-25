@@ -68,6 +68,10 @@ export async function createSynthesizer(
 } /**
  * シンセサイザを破棄する
  *
+ * C APIは実行中の呼び出しの完了は待つが、Workerのキューで待機中の非同期呼び出し
+ * （`.async`）は考慮しない。破棄後にそれらが実行されるとプロセスが異常終了するため、
+ * このシンセサイザを使う非同期呼び出しがすべて完了してから呼ぶこと。
+ *
  * @param functions - VOICEVOX CORE FFI関数
  * @param synthesizer - シンセサイザハンドル
  */

@@ -193,6 +193,17 @@ void voicevox_voice_model_file_delete(void* model) { free(model); }
 
 /* ==== シンセサイザ ==== */
 
+static int synthesizer_delete_count = 0;
+static int synthesizer_use_after_delete_count = 0;
+static const void* last_deleted_synthesizer = NULL;
+
+/* 破棄済みのシンセサイザが使われたら記録する */
+static void check_synthesizer(const void* synthesizer) {
+  if (synthesizer == last_deleted_synthesizer) {
+    synthesizer_use_after_delete_count++;
+  }
+}
+
 static int32_t last_acceleration_mode = -1;
 static uint32_t last_cpu_num_threads = 0;
 
@@ -209,10 +220,20 @@ int32_t voicevox_synthesizer_new(const void* onnxruntime, const void* open_jtalk
   last_acceleration_mode = options.acceleration_mode;
   last_cpu_num_threads = options.cpu_num_threads;
   *out_synthesizer = malloc(1);
+  /* 解放済みのアドレスが再利用された場合は誤検知しないようにする */
+  if (*out_synthesizer == last_deleted_synthesizer) {
+    last_deleted_synthesizer = NULL;
+  }
   return 0;
 }
 
-void voicevox_synthesizer_delete(void* synthesizer) { free(synthesizer); }
+void voicevox_synthesizer_delete(void* synthesizer) {
+  if (synthesizer != NULL) {
+    synthesizer_delete_count++;
+    last_deleted_synthesizer = synthesizer;
+  }
+  free(synthesizer);
+}
 
 static int32_t last_on_existing = -1;
 
@@ -383,7 +404,7 @@ int32_t voicevox_synthesizer_synthesis(const void* synthesizer, const char* audi
 int32_t voicevox_synthesizer_tts(const void* synthesizer, const char* text, uint32_t style_id,
                                  VoicevoxTtsOptions options, uintptr_t* output_length,
                                  uint8_t** output) {
-  (void)synthesizer;
+  check_synthesizer(synthesizer);
   return mock_synthesize(text, style_id, options.enable_interrogative_upspeak, output_length,
                          output);
 }
@@ -409,6 +430,9 @@ void voicevox_wav_from_s16le(uintptr_t pcm_length, const uint8_t* pcm, uint32_t 
 
 /* ==== ストリーミング音声合成 ==== */
 
+/* 破棄済みの中間表現が使われたことを検出するため、最後に破棄したものを記録する */
+static const VoicevoxAudioFeature* last_deleted_audio_feature = NULL;
+
 int32_t voicevox_synthesizer_create_audio_feature(const void* synthesizer,
                                                   const char* audio_query_json,
                                                   uint32_t style_id,
@@ -419,6 +443,10 @@ int32_t voicevox_synthesizer_create_audio_feature(const void* synthesizer,
   audio_feature->len = mock_frame_length(audio_query_json, options.enable_interrogative_upspeak);
   audio_feature->style_id = style_id;
   *out_audio_feature = audio_feature;
+  /* 解放済みのアドレスが再利用された場合は誤検知しないようにする */
+  if (audio_feature == last_deleted_audio_feature) {
+    last_deleted_audio_feature = NULL;
+  }
   return 0;
 }
 
@@ -508,13 +536,12 @@ int32_t voicevox_audio_feature_slice_slice(VoicevoxAudioFeatureSlice audio_featu
 
 static int render_count = 0;
 static int render_after_delete_count = 0;
-static const VoicevoxAudioFeature* last_deleted_audio_feature = NULL;
 
 /* PCMの代わりにフレームごとに [フレーム番号下位バイト, style_id下位バイト] を返す */
 int32_t voicevox_synthesizer_render(const void* synthesizer,
                                     VoicevoxAudioFeatureSlice audio_feature_slice,
                                     uintptr_t* output_pcm_length, uint8_t** output_pcm) {
-  (void)synthesizer;
+  check_synthesizer(synthesizer);
   render_count++;
   if (audio_feature_slice.audio_feature == last_deleted_audio_feature) {
     render_after_delete_count++;
@@ -575,8 +602,10 @@ int32_t voicevox_ensure_compatible(const char* score_json, const char* frame_aud
 int32_t voicevox_synthesizer_create_sing_frame_audio_query(const void* synthesizer,
                                                            const char* score_json,
                                                            uint32_t style_id, char** output) {
-  (void)synthesizer;
-  *output = dup_echo_json("score", score_json, style_id);
+  check_synthesizer(synthesizer);
+  (void)style_id;
+  /* 楽譜のJSONをそのままFrameAudioQueryとして返す */
+  *output = dup_string(score_json);
   return 0;
 }
 
@@ -607,7 +636,7 @@ int32_t voicevox_synthesizer_frame_synthesis(const void* synthesizer,
                                              const char* frame_audio_query_json,
                                              uint32_t style_id, uintptr_t* output_wav_length,
                                              uint8_t** output_wav) {
-  (void)synthesizer;
+  check_synthesizer(synthesizer);
   return mock_synthesize(frame_audio_query_json, style_id, false, output_wav_length, output_wav);
 }
 
@@ -693,4 +722,8 @@ int32_t mock_last_on_existing(void) { return last_on_existing; }
 int32_t mock_empty_bytes_free_count(void) { return empty_bytes_free_count; }
 int32_t mock_audio_feature_delete_count(void) { return audio_feature_delete_count; }
 int32_t mock_render_count(void) { return render_count; }
+int32_t mock_synthesizer_delete_count(void) { return synthesizer_delete_count; }
+int32_t mock_synthesizer_use_after_delete_count(void) {
+  return synthesizer_use_after_delete_count;
+}
 int32_t mock_render_after_delete_count(void) { return render_after_delete_count; }

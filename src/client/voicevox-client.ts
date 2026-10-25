@@ -50,6 +50,7 @@ import type {
   TtsOptions,
   Score,
   FrameAudioQuery,
+  SynthesizerHandle,
 } from "../types/index.js";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -97,7 +98,7 @@ export async function createVoicevoxClient(
   const openJtalk = await createOpenJtalk(functions, options.openJtalkDictDir);
 
   // シンセサイザを初期化
-  let synthesizer;
+  let synthesizer: SynthesizerHandle;
   try {
     synthesizer = await createSynthesizer(
       functions,
@@ -110,8 +111,16 @@ export async function createVoicevoxClient(
     throw error;
   }
 
-  // 破棄済みフラグ
+  // 破棄済みフラグ（close()以降の新しい操作を拒否する）
   let disposed = false;
+  // シンセサイザ等を実際に解放したか
+  let released = false;
+  // 実行中の非同期操作の数
+  let activeOperations = 0;
+  let resolveReleased: () => void = () => {};
+  const releasedPromise = new Promise<void>((resolve) => {
+    resolveReleased = resolve;
+  });
 
   /**
    * 破棄済みチェック
@@ -123,106 +132,133 @@ export async function createVoicevoxClient(
   }
 
   /**
+   * 閉じられていて実行中の操作がなければ、シンセサイザとOpenJTalkを解放する
+   *
+   * 非同期呼び出しはWorkerのキューで待機していることがあり、C APIの破棄関数は
+   * 実行中の呼び出しの完了しか待たない。解放後に待機中の呼び出しが実行されると
+   * プロセスが異常終了するため、close()は即座に解放しない
+   */
+  function releaseIfIdle(): void {
+    if (disposed && activeOperations === 0 && !released) {
+      released = true;
+      deleteSynthesizer(functions, synthesizer);
+      deleteOpenJtalk(functions, openJtalk);
+      resolveReleased();
+    }
+  }
+
+  /**
+   * 非同期操作を実行中として数え、完了するまでリソースの解放を遅らせる
+   *
+   * 複数のC API呼び出しからなる操作も、途中でclose()されたときは最後まで実行される
+   */
+  async function track<T>(operation: () => Promise<T>): Promise<T> {
+    ensureNotDisposed();
+    activeOperations++;
+    try {
+      return await operation();
+    } finally {
+      activeOperations--;
+      releaseIfIdle();
+    }
+  }
+
+  /**
    * クライアントオブジェクト
    */
   const client: VoicevoxClient = {
     // モデル操作
 
-    async peekModelFilesMeta(dir: string): Promise<readonly CharacterMetaWithModelInfo[]> {
-      ensureNotDisposed();
+    peekModelFilesMeta(dir: string): Promise<readonly CharacterMetaWithModelInfo[]> {
+      return track(async () => {
+        const files = await readdir(dir);
+        const vvmFiles = files.filter((f) => f.endsWith(".vvm"));
 
-      const files = await readdir(dir);
-      const vvmFiles = files.filter((f) => f.endsWith(".vvm"));
+        const results: CharacterMetaWithModelInfo[] = [];
+        for (const file of vvmFiles) {
+          const modelFilePath = join(dir, file);
+          const handle = await openVoiceModelFile(functions, modelFilePath);
+          try {
+            const metasJson = getVoiceModelMetasJson(functions, handle);
+            const metas = JSON.parse(metasJson) as CharacterMeta[];
+            const modelId = getVoiceModelId(functions, handle);
 
-      const results: CharacterMetaWithModelInfo[] = [];
-      for (const file of vvmFiles) {
-        const modelFilePath = join(dir, file);
-        const handle = await openVoiceModelFile(functions, modelFilePath);
-        try {
-          const metasJson = getVoiceModelMetasJson(functions, handle);
-          const metas = JSON.parse(metasJson) as CharacterMeta[];
-          const modelId = getVoiceModelId(functions, handle);
-
-          // スピーカーごとにフラット化
-          for (const meta of metas) {
-            results.push({
-              ...meta,
-              modelFilePath,
-              modelId,
-            });
+            // スピーカーごとにフラット化
+            for (const meta of metas) {
+              results.push({
+                ...meta,
+                modelFilePath,
+                modelId,
+              });
+            }
+          } finally {
+            closeVoiceModelFile(functions, handle);
           }
-        } finally {
-          closeVoiceModelFile(functions, handle);
         }
-      }
 
-      return results;
+        return results;
+      });
     },
 
-    async loadVoiceModelFromPath(...paths: string[]): Promise<void> {
-      ensureNotDisposed();
-
-      for (const path of paths) {
-        const handle = await openVoiceModelFile(functions, path);
-        try {
-          await loadVoiceModel(functions, synthesizer, handle);
-        } finally {
-          closeVoiceModelFile(functions, handle);
+    loadVoiceModelFromPath(...paths: string[]): Promise<void> {
+      return track(async () => {
+        for (const path of paths) {
+          const handle = await openVoiceModelFile(functions, path);
+          try {
+            await loadVoiceModel(functions, synthesizer, handle);
+          } finally {
+            closeVoiceModelFile(functions, handle);
+          }
         }
-      }
+      });
     },
     // 音声合成
 
-    async tts(text: string, styleId: number, options?: TtsOptions): Promise<Uint8Array> {
-      ensureNotDisposed();
-      return synthesizerTts(functions, synthesizer, text, styleId, options);
+    tts(text: string, styleId: number, options?: TtsOptions): Promise<Uint8Array> {
+      return track(() => synthesizerTts(functions, synthesizer, text, styleId, options));
     },
 
-    async ttsFromKana(kana: string, styleId: number, options?: TtsOptions): Promise<Uint8Array> {
-      ensureNotDisposed();
-      return synthesizerTtsFromKana(functions, synthesizer, kana, styleId, options);
+    ttsFromKana(kana: string, styleId: number, options?: TtsOptions): Promise<Uint8Array> {
+      return track(() => synthesizerTtsFromKana(functions, synthesizer, kana, styleId, options));
     },
 
-    async createAudioQuery(text: string, styleId: number): Promise<AudioQuery> {
-      ensureNotDisposed();
-      return synthesizerCreateAudioQuery(functions, synthesizer, text, styleId);
+    createAudioQuery(text: string, styleId: number): Promise<AudioQuery> {
+      return track(() => synthesizerCreateAudioQuery(functions, synthesizer, text, styleId));
     },
 
-    async createAudioQueryFromKana(kana: string, styleId: number): Promise<AudioQuery> {
-      ensureNotDisposed();
-      return synthesizerCreateAudioQueryFromKana(functions, synthesizer, kana, styleId);
+    createAudioQueryFromKana(kana: string, styleId: number): Promise<AudioQuery> {
+      return track(() =>
+        synthesizerCreateAudioQueryFromKana(functions, synthesizer, kana, styleId),
+      );
     },
 
-    async createAccentPhrases(
-      text: string,
-      styleId: number,
-    ): Promise<AudioQuery["accent_phrases"]> {
-      ensureNotDisposed();
-      return synthesizerCreateAccentPhrases(functions, synthesizer, text, styleId);
+    createAccentPhrases(text: string, styleId: number): Promise<AudioQuery["accent_phrases"]> {
+      return track(() => synthesizerCreateAccentPhrases(functions, synthesizer, text, styleId));
     },
 
-    async createAccentPhrasesFromKana(
+    createAccentPhrasesFromKana(
       kana: string,
       styleId: number,
     ): Promise<AudioQuery["accent_phrases"]> {
-      ensureNotDisposed();
-      return synthesizerCreateAccentPhrasesFromKana(functions, synthesizer, kana, styleId);
+      return track(() =>
+        synthesizerCreateAccentPhrasesFromKana(functions, synthesizer, kana, styleId),
+      );
     },
 
-    async createAudioQueryFromAccentPhrases(
+    createAudioQueryFromAccentPhrases(
       accentPhrases: AudioQuery["accent_phrases"],
     ): Promise<AudioQuery> {
-      ensureNotDisposed();
-      return synthesizerCreateAudioQueryFromAccentPhrases(functions, accentPhrases);
+      return track(() => synthesizerCreateAudioQueryFromAccentPhrases(functions, accentPhrases));
     },
 
-    async synthesize(
+    synthesize(
       audioQuery: AudioQuery,
       styleId: number,
       options?: SynthesisOptions,
     ): Promise<Uint8Array> {
-      ensureNotDisposed();
-      return synthesizerSynthesis(functions, synthesizer, audioQuery, styleId, options);
+      return track(() =>
+        synthesizerSynthesis(functions, synthesizer, audioQuery, styleId, options),
+      );
     },
 
     // ストリーミング音声合成
@@ -233,17 +269,24 @@ export async function createVoicevoxClient(
       options?: StreamingSynthesisOptions,
     ): AsyncGenerator<Uint8Array, void, undefined> {
       ensureNotDisposed();
-      const stream = synthesizerStreamingSynthesis(
-        functions,
-        synthesizer,
-        audioQuery,
-        styleId,
-        options,
-      );
-      for await (const chunk of stream) {
-        yield chunk;
-        // 反復の途中でクライアントが閉じられた場合、破棄済みのシンセサイザで合成しない
-        ensureNotDisposed();
+      // 反復中は先読みのrenderが実行中のことがあるため、反復の終了まで解放を遅らせる
+      activeOperations++;
+      try {
+        const stream = synthesizerStreamingSynthesis(
+          functions,
+          synthesizer,
+          audioQuery,
+          styleId,
+          options,
+        );
+        for await (const chunk of stream) {
+          yield chunk;
+          // 反復の途中でクライアントが閉じられた場合は、次の区間を合成せずに終了する
+          ensureNotDisposed();
+        }
+      } finally {
+        activeOperations--;
+        releaseIfIdle();
       }
     },
 
@@ -252,13 +295,8 @@ export async function createVoicevoxClient(
       styleId: number,
       options?: SynthesisOptions,
     ): Promise<AudioFeature> {
-      ensureNotDisposed();
-      const handle = await synthesizerCreateAudioFeature(
-        functions,
-        synthesizer,
-        audioQuery,
-        styleId,
-        options,
+      const handle = await track(() =>
+        synthesizerCreateAudioFeature(functions, synthesizer, audioQuery, styleId, options),
       );
       const length = getAudioFeatureLength(functions, handle);
 
@@ -289,7 +327,9 @@ export async function createVoicevoxClient(
           }
           pendingRenders++;
           try {
-            return await renderAudioFeature(functions, synthesizer, handle, start, end);
+            return await track(() =>
+              renderAudioFeature(functions, synthesizer, handle, start, end),
+            );
           } finally {
             pendingRenders--;
             releaseIfIdle();
@@ -318,25 +358,28 @@ export async function createVoicevoxClient(
 
     // 歌唱音声合成
 
-    async createSingFrameAudioQuery(score: Score, styleId: number): Promise<FrameAudioQuery> {
-      ensureNotDisposed();
-      return synthesizerCreateSingFrameAudioQuery(functions, synthesizer, score, styleId);
-    },
-
-    async frameSynthesize(frameAudioQuery: FrameAudioQuery, styleId: number): Promise<Uint8Array> {
-      ensureNotDisposed();
-      return synthesizerFrameSynthesis(functions, synthesizer, frameAudioQuery, styleId);
-    },
-
-    async sing(score: Score, teacherStyleId: number, singerStyleId: number): Promise<Uint8Array> {
-      ensureNotDisposed();
-      const frameAudioQuery = await synthesizerCreateSingFrameAudioQuery(
-        functions,
-        synthesizer,
-        score,
-        teacherStyleId,
+    createSingFrameAudioQuery(score: Score, styleId: number): Promise<FrameAudioQuery> {
+      return track(() =>
+        synthesizerCreateSingFrameAudioQuery(functions, synthesizer, score, styleId),
       );
-      return synthesizerFrameSynthesis(functions, synthesizer, frameAudioQuery, singerStyleId);
+    },
+
+    frameSynthesize(frameAudioQuery: FrameAudioQuery, styleId: number): Promise<Uint8Array> {
+      return track(() =>
+        synthesizerFrameSynthesis(functions, synthesizer, frameAudioQuery, styleId),
+      );
+    },
+
+    sing(score: Score, teacherStyleId: number, singerStyleId: number): Promise<Uint8Array> {
+      return track(async () => {
+        const frameAudioQuery = await synthesizerCreateSingFrameAudioQuery(
+          functions,
+          synthesizer,
+          score,
+          teacherStyleId,
+        );
+        return synthesizerFrameSynthesis(functions, synthesizer, frameAudioQuery, singerStyleId);
+      });
     },
 
     // 情報取得
@@ -378,16 +421,17 @@ export async function createVoicevoxClient(
     // リソース管理
 
     close() {
-      if (disposed) {
-        return;
-      }
       disposed = true;
-      deleteSynthesizer(functions, synthesizer);
-      deleteOpenJtalk(functions, openJtalk);
+      releaseIfIdle();
     },
 
     [Symbol.dispose]() {
       this.close();
+    },
+
+    [Symbol.asyncDispose]() {
+      this.close();
+      return releasedPromise;
     },
   };
 

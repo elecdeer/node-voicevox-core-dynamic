@@ -134,9 +134,9 @@ export interface AudioFeature extends Disposable {
 /**
  * クライアントオブジェクト
  *
- * `using` 宣言で使用可能
+ * `using` / `await using` 宣言で使用可能
  */
-export interface VoicevoxClient extends Disposable {
+export interface VoicevoxClient extends Disposable, AsyncDisposable {
   // モデル操作
 
   /**
@@ -251,6 +251,10 @@ export interface VoicevoxClient extends Disposable {
    * すべての要素を連結するとWAVファイルになります。
    *
    * 新形式（`vvm_format_version=2`）のVVMが必要です。
+   *
+   * 反復中は実行中の操作として扱われ、`close()`しても反復が終わるまでリソースは
+   * 解放されません。反復を途中で放棄する場合は`return()`を呼んでください
+   * （`for await`の`break`では自動で呼ばれます）。
    *
    * @param audioQuery - AudioQuery
    * @param styleId - スタイルID
@@ -378,6 +382,10 @@ export interface VoicevoxClient extends Disposable {
 
   /**
    * クライアントを閉じる
+   *
+   * 以降の操作はエラーになります。実行中の非同期操作（反復中の`streamingSynthesis`を含む）が
+   * ある場合、リソースはそれらがすべて完了してから解放されます。解放の完了を待つには
+   * `await using`を使うか、`[Symbol.asyncDispose]()`の戻り値をawaitしてください。
    *
    * 冪等性が保証されており、複数回呼び出しても安全
    */

@@ -507,6 +507,94 @@ describe.runIf(C_COMPILER !== undefined && process.platform !== "win32")(
       }
     });
 
+    describe("高レベルAPI: close()は実行中の操作の完了後にリソースを解放する", () => {
+      /** シンセサイザの破棄回数と、破棄後に使われた回数 */
+      function synthesizerCounters(): { deleted: number; usedAfterDelete: number } {
+        return {
+          deleted: mockAccessor("mock_synthesizer_delete_count", "i32")() as number,
+          usedAfterDelete: mockAccessor(
+            "mock_synthesizer_use_after_delete_count",
+            "i32",
+          )() as number,
+        };
+      }
+
+      async function createClient() {
+        return createVoicevoxClient({ corePath: libPath, openJtalkDictDir: "/mock/dict" });
+      }
+
+      test("実行中の呼び出しがあれば、完了してから解放する", async () => {
+        const client = await createClient();
+        const before = synthesizerCounters();
+
+        const wav = client.tts("abc", 1);
+        client.close();
+        expect(synthesizerCounters().deleted).toBe(before.deleted);
+
+        expect([...(await wav)]).toEqual([1, 1, 0x61, 0x62, 0x63]);
+        expect(synthesizerCounters()).toEqual({
+          deleted: before.deleted + 1,
+          usedAfterDelete: before.usedAfterDelete,
+        });
+
+        // 閉じた後の新しい操作は拒否する
+        await expect(client.tts("abc", 1)).rejects.toThrow("disposed");
+        // 冪等
+        client.close();
+        expect(synthesizerCounters().deleted).toBe(before.deleted + 1);
+      });
+
+      test("複数の呼び出しからなる操作は、途中で閉じられても最後まで実行する", async () => {
+        const client = await createClient();
+        const before = synthesizerCounters();
+
+        // createSingFrameAudioQuery → frameSynthesis の2段階
+        const wav = client.sing({ notes: [] }, 1, 2);
+        client.close();
+
+        expect((await wav)[1]).toBe(2);
+        expect(synthesizerCounters()).toEqual({
+          deleted: before.deleted + 1,
+          usedAfterDelete: before.usedAfterDelete,
+        });
+      });
+
+      test("反復中のstreamingSynthesisは、反復の終了まで解放を遅らせる", async () => {
+        const client = await createClient();
+        const before = synthesizerCounters();
+
+        const stream = client.streamingSynthesis(AUDIO_QUERY, 3, {
+          segmentLengthInSecs: 2 / 93.75,
+        });
+        await stream.next();
+        await stream.next();
+
+        // 先読みのrenderが実行中でも解放しない
+        client.close();
+        expect(synthesizerCounters().deleted).toBe(before.deleted);
+
+        // 閉じた後は次の区間を合成せずに終了する
+        await expect(stream.next()).rejects.toThrow("disposed");
+        expect(synthesizerCounters()).toEqual({
+          deleted: before.deleted + 1,
+          usedAfterDelete: before.usedAfterDelete,
+        });
+      });
+
+      test("Symbol.asyncDisposeは解放の完了を待つ", async () => {
+        const client = await createClient();
+        const before = synthesizerCounters();
+
+        const wav = client.tts("abc", 1);
+        const disposed = client[Symbol.asyncDispose]();
+        expect(synthesizerCounters().deleted).toBe(before.deleted);
+
+        await disposed;
+        expect(synthesizerCounters().deleted).toBe(before.deleted + 1);
+        await wav;
+      });
+    });
+
     test("高レベルAPI: AudioFeatureは生成中のrenderが終わってから破棄される", async () => {
       const deleteCount = mockAccessor("mock_audio_feature_delete_count", "i32");
       const client = await createVoicevoxClient({
