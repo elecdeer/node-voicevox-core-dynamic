@@ -17,6 +17,14 @@ import { createAccentPhrasesFromKana as synthesizerCreateAccentPhrasesFromKana }
 import { createAccentPhrases as synthesizerCreateAccentPhrases } from "../api/talk.js";
 import { createAudioQueryFromKana as synthesizerCreateAudioQueryFromKana } from "../api/talk.js";
 import { createAudioQuery as synthesizerCreateAudioQuery } from "../api/talk.js";
+import {
+  createAudioFeature as synthesizerCreateAudioFeature,
+  deleteAudioFeature,
+  getAudioFeatureLength,
+  getAudioQueryFrameLength,
+  renderAudioFeature,
+  streamingSynthesis as synthesizerStreamingSynthesis,
+} from "../api/streaming.js";
 import { getSynthesizerMetasJson } from "../api/voice-model.js";
 import { isGpuMode as synthesizerIsGpuMode } from "../api/voicevox.js";
 import { deleteSynthesizer } from "../api/voicevox.js";
@@ -28,6 +36,7 @@ import {
   closeVoiceModelFile,
 } from "../api/voice-model.js";
 import type {
+  AudioFeature,
   VoicevoxClient,
   VoicevoxClientOptions,
   CharacterMeta,
@@ -35,6 +44,8 @@ import type {
 } from "./types.js";
 import type {
   AudioQuery,
+  AudioQueryFrameLengthOptions,
+  StreamingSynthesisOptions,
   SynthesisOptions,
   TtsOptions,
   Score,
@@ -212,6 +223,97 @@ export async function createVoicevoxClient(
     ): Promise<Uint8Array> {
       ensureNotDisposed();
       return synthesizerSynthesis(functions, synthesizer, audioQuery, styleId, options);
+    },
+
+    // ストリーミング音声合成
+
+    async *streamingSynthesis(
+      audioQuery: AudioQuery,
+      styleId: number,
+      options?: StreamingSynthesisOptions,
+    ): AsyncGenerator<Uint8Array, void, undefined> {
+      ensureNotDisposed();
+      const stream = synthesizerStreamingSynthesis(
+        functions,
+        synthesizer,
+        audioQuery,
+        styleId,
+        options,
+      );
+      for await (const chunk of stream) {
+        yield chunk;
+        // 反復の途中でクライアントが閉じられた場合、破棄済みのシンセサイザで合成しない
+        ensureNotDisposed();
+      }
+    },
+
+    async createAudioFeature(
+      audioQuery: AudioQuery,
+      styleId: number,
+      options?: SynthesisOptions,
+    ): Promise<AudioFeature> {
+      ensureNotDisposed();
+      const handle = await synthesizerCreateAudioFeature(
+        functions,
+        synthesizer,
+        audioQuery,
+        styleId,
+        options,
+      );
+      const length = getAudioFeatureLength(functions, handle);
+
+      let closed = false;
+      let deleted = false;
+      let pendingRenders = 0;
+
+      /**
+       * 閉じられていて生成中のrenderがなければ破棄する
+       *
+       * 生成中に破棄するとプロセスが異常終了するため、close()は即座に破棄しない
+       */
+      function releaseIfIdle(): void {
+        if (closed && pendingRenders === 0 && !deleted) {
+          deleted = true;
+          deleteAudioFeature(functions, handle);
+        }
+      }
+
+      const audioFeature: AudioFeature = {
+        length,
+        handle,
+
+        async render(start?: number, end?: number): Promise<Uint8Array> {
+          ensureNotDisposed();
+          if (closed) {
+            throw new Error("AudioFeature has been closed");
+          }
+          pendingRenders++;
+          try {
+            return await renderAudioFeature(functions, synthesizer, handle, start, end);
+          } finally {
+            pendingRenders--;
+            releaseIfIdle();
+          }
+        },
+
+        close() {
+          closed = true;
+          releaseIfIdle();
+        },
+
+        [Symbol.dispose]() {
+          this.close();
+        },
+      };
+      return audioFeature;
+    },
+
+    getAudioQueryFrameLength(
+      audioQuery: AudioQuery,
+      options?: AudioQueryFrameLengthOptions,
+    ): number {
+      ensureNotDisposed();
+      return getAudioQueryFrameLength(functions, audioQuery, options);
     },
 
     // 歌唱音声合成

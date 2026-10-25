@@ -8,21 +8,33 @@
  *   → `pointer`1個（値返しは`cstring`）
  * - `VoicevoxInitializeOptions { int32_t; uint16_t }`（8B）
  *   → `u64`1個（packInitializeOptions/unpackInitializeOptionsでパック）
- * - `VoicevoxSynthesisOptions / VoicevoxTtsOptions { bool }`（1B）
- *   → `bool_u8`1個
+ * - `VoicevoxSynthesisOptions / VoicevoxTtsOptions /
+ *   VoicevoxAudioQueryFrameLengthOptions { bool }`（1B）→ `bool_u8`1個
+ * - `VoicevoxLoadVoiceModelOptions { int32_t }`（4B）→ `i32`1個
  * - `VoicevoxUserDictWord`（32B）はポインタ渡しのみ（packUserDictWordでパック）
+ * - `VoicevoxAudioFeatureSlice`（32B）の値渡し → `audio_feature_slice`
+ *   （ABIごとのloweringはfunctions.tsとnative.tsを参照）
  *
- * `voicevox_user_dict_word_make`（32バイト構造体の値返し）は隠れsretポインタの
- * 渡し方がABIによって異なり（AArch64ではx8レジスタ）loweringできないため
- * このテーブルには含めず、JS側でデフォルト値を再現している（open-jtalk.tsを参照）。
+ * `voicevox_user_dict_word_make`と`voicevox_audio_feature_slice_new`（32バイト構造体の
+ * 値返し）は隠れsretポインタの渡し方がABIによって異なり（AArch64ではx8レジスタ）
+ * loweringできないためこのテーブルには含めない。前者はJS側でデフォルト値を再現し
+ * （open-jtalk.tsを参照）、後者は`voicevox_audio_feature_slice`で代替する。
  */
 
 import type { FunctionSignature } from "./native.js";
 
 export const FUNCTION_SIGNATURES = {
   // ONNX Runtime関連
-  voicevox_get_onnxruntime_lib_versioned_filename: { return: "cstring", arguments: [] },
-  voicevox_get_onnxruntime_lib_unversioned_filename: { return: "cstring", arguments: [] },
+  voicevox_get_onnxruntime_lib_min_required_minor_version: { return: "u32", arguments: [] },
+  voicevox_get_onnxruntime_lib_max_supported_minor_version: { return: "u32", arguments: [] },
+  voicevox_get_onnxruntime_lib_recommended_versioned_filename: {
+    return: "cstring",
+    arguments: [],
+  },
+  voicevox_get_onnxruntime_lib_recommended_unversioned_filename: {
+    return: "cstring",
+    arguments: [],
+  },
   // VoicevoxLoadOnnxruntimeOptionsの値返し → 静的文字列へのポインタ
   voicevox_make_default_load_onnxruntime_options: { return: "cstring", arguments: [] },
   voicevox_onnxruntime_get: { return: "pointer", arguments: [] },
@@ -54,7 +66,13 @@ export const FUNCTION_SIGNATURES = {
     arguments: ["pointer", "pointer", "u64", "pointer"],
   },
   voicevox_synthesizer_delete: { return: "void", arguments: ["pointer"] },
-  voicevox_synthesizer_load_voice_model: { return: "i32", arguments: ["pointer", "pointer"] },
+  // VoicevoxLoadVoiceModelOptionsの値返し → i32
+  voicevox_make_default_load_voice_model_options: { return: "i32", arguments: [] },
+  // VoicevoxLoadVoiceModelOptionsの値渡し → i32
+  voicevox_synthesizer_load_voice_model: {
+    return: "i32",
+    arguments: ["pointer", "pointer", "i32"],
+  },
   voicevox_synthesizer_unload_voice_model: { return: "i32", arguments: ["pointer", "pointer"] },
   voicevox_synthesizer_get_onnxruntime: { return: "pointer", arguments: ["pointer"] },
   voicevox_synthesizer_is_gpu_mode: { return: "bool", arguments: ["pointer"] },
@@ -95,6 +113,16 @@ export const FUNCTION_SIGNATURES = {
     arguments: ["pointer", "pointer", "u32", "pointer"],
   },
 
+  // フレーム長
+  voicevox_get_frame_rate: { return: "f64", arguments: [] },
+  // VoicevoxAudioQueryFrameLengthOptionsの値返し → u8
+  voicevox_make_default_audio_query_frame_length_options: { return: "bool_u8", arguments: [] },
+  // VoicevoxAudioQueryFrameLengthOptionsの値渡し → u8
+  voicevox_audio_query_frame_length: {
+    return: "i32",
+    arguments: ["pointer", "bool_u8", "pointer"],
+  },
+
   // 音声合成
   // VoicevoxSynthesisOptions / VoicevoxTtsOptionsの値返し → u8
   voicevox_make_default_synthesis_options: { return: "bool_u8", arguments: [] },
@@ -112,40 +140,66 @@ export const FUNCTION_SIGNATURES = {
     return: "i32",
     arguments: ["pointer", "pointer", "u32", "bool_u8", "pointer", "pointer"],
   },
+  voicevox_wav_from_s16le: {
+    return: "void",
+    arguments: ["u64", "pointer", "u32", "bool", "pointer", "pointer"],
+  },
+
+  // ストリーミング音声合成（AudioFeature）
+  voicevox_synthesizer_create_audio_feature: {
+    return: "i32",
+    arguments: ["pointer", "pointer", "u32", "bool_u8", "pointer"],
+  },
+  voicevox_audio_feature_len: { return: "u64", arguments: ["pointer"] },
+  voicevox_audio_feature_is_empty: { return: "bool", arguments: ["pointer"] },
+  voicevox_audio_feature_slice: {
+    return: "i32",
+    arguments: ["pointer", "u64", "u64", "bool", "bool", "bool", "pointer"],
+  },
+  voicevox_audio_feature_slice_len: {
+    return: "i32",
+    arguments: ["audio_feature_slice", "pointer"],
+  },
+  voicevox_audio_feature_slice_is_empty: {
+    return: "i32",
+    arguments: ["audio_feature_slice", "pointer"],
+  },
+  voicevox_audio_feature_slice_slice: {
+    return: "i32",
+    arguments: ["audio_feature_slice", "u64", "u64", "bool", "bool", "bool", "pointer"],
+  },
+  voicevox_synthesizer_render: {
+    return: "i32",
+    arguments: ["pointer", "audio_feature_slice", "pointer", "pointer"],
+  },
+  voicevox_audio_feature_delete: { return: "void", arguments: ["pointer"] },
 
   // バリデーション
-  // Note: これらの関数は新しいバージョンのvoicevox_coreで追加されたため、
-  // 古いバージョンでは利用できません。存在しない場合はundefinedになります。
-  voicevox_audio_query_validate: { return: "i32", arguments: ["pointer"], optional: true },
-  voicevox_accent_phrase_validate: { return: "i32", arguments: ["pointer"], optional: true },
-  voicevox_mora_validate: { return: "i32", arguments: ["pointer"], optional: true },
-  voicevox_score_validate: { return: "i32", arguments: ["pointer"], optional: true },
-  voicevox_note_validate: { return: "i32", arguments: ["pointer"], optional: true },
-  voicevox_frame_audio_query_validate: { return: "i32", arguments: ["pointer"], optional: true },
-  voicevox_frame_phoneme_validate: { return: "i32", arguments: ["pointer"], optional: true },
-  voicevox_ensure_compatible: { return: "i32", arguments: ["pointer", "pointer"], optional: true },
+  voicevox_audio_query_validate: { return: "i32", arguments: ["pointer"] },
+  voicevox_accent_phrase_validate: { return: "i32", arguments: ["pointer"] },
+  voicevox_mora_validate: { return: "i32", arguments: ["pointer"] },
+  voicevox_score_validate: { return: "i32", arguments: ["pointer"] },
+  voicevox_note_validate: { return: "i32", arguments: ["pointer"] },
+  voicevox_frame_audio_query_validate: { return: "i32", arguments: ["pointer"] },
+  voicevox_frame_phoneme_validate: { return: "i32", arguments: ["pointer"] },
+  voicevox_ensure_compatible: { return: "i32", arguments: ["pointer", "pointer"] },
 
   // 歌唱音声合成
-  // Note: これらの関数はv0.16.4以降で追加されたため、古いバージョンでは利用できません。
   voicevox_synthesizer_create_sing_frame_audio_query: {
     return: "i32",
     arguments: ["pointer", "pointer", "u32", "pointer"],
-    optional: true,
   },
   voicevox_synthesizer_create_sing_frame_f0: {
     return: "i32",
     arguments: ["pointer", "pointer", "pointer", "u32", "pointer"],
-    optional: true,
   },
   voicevox_synthesizer_create_sing_frame_volume: {
     return: "i32",
     arguments: ["pointer", "pointer", "pointer", "u32", "pointer"],
-    optional: true,
   },
   voicevox_synthesizer_frame_synthesis: {
     return: "i32",
     arguments: ["pointer", "pointer", "u32", "pointer", "pointer"],
-    optional: true,
   },
 
   // ユーザー辞書
@@ -162,8 +216,8 @@ export const FUNCTION_SIGNATURES = {
   // ユーティリティ
   voicevox_get_version: { return: "cstring", arguments: [] },
   voicevox_error_result_to_message: { return: "cstring", arguments: ["i32"] },
-  voicevox_json_free: { return: "void", arguments: ["pointer"] },
-  voicevox_wav_free: { return: "void", arguments: ["pointer"] },
+  voicevox_string_free: { return: "void", arguments: ["pointer"] },
+  voicevox_bytes_free: { return: "void", arguments: ["pointer"] },
 } as const satisfies Record<string, FunctionSignature>;
 
 /**

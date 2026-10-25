@@ -91,7 +91,7 @@ export function getOnnxruntimeSupportedDevicesJson(
   }
 
   const jsonStr = readCString(jsonPtr);
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return jsonStr;
 }

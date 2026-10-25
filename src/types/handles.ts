@@ -11,8 +11,9 @@ declare const OpenJtalkHandleBrand: unique symbol;
 declare const SynthesizerHandleBrand: unique symbol;
 declare const VoiceModelFileHandleBrand: unique symbol;
 declare const UserDictHandleBrand: unique symbol;
+declare const AudioFeatureHandleBrand: unique symbol;
 declare const OutJsonStringHandleBrand: unique symbol;
-declare const OutWavDataHandleBrand: unique symbol;
+declare const OutBytesHandleBrand: unique symbol;
 
 /**
  * ONNX Runtimeハンドル
@@ -60,21 +61,31 @@ export type UserDictHandle = bigint & {
 };
 
 /**
+ * 音声合成用の中間表現ハンドル
+ *
+ * ストリーミング音声合成で使う`VoicevoxAudioFeature`への参照。
+ * voicevox_audio_feature_deleteで破棄する必要がある
+ */
+export type AudioFeatureHandle = bigint & {
+  readonly [AudioFeatureHandleBrand]: never;
+};
+
+/**
  * JSON文字列出力ハンドル
  *
  * C APIの関数から出力されるJSON文字列ポインタ
- * voicevox_json_freeで解放する必要がある
+ * voicevox_string_freeで解放する必要がある
  */
 export type OutJsonStringHandle = bigint & {
   readonly [OutJsonStringHandleBrand]: never;
 };
 
 /**
- * WAVデータ出力ハンドル
+ * バイト列出力ハンドル
  *
- * C APIの関数から出力されるWAVデータポインタ
- * voicevox_wav_freeで解放する必要がある
+ * C APIの関数から出力されるWAV/PCMデータポインタ
+ * voicevox_bytes_freeで解放する必要がある
  */
-export type OutWavDataHandle = bigint & {
-  readonly [OutWavDataHandleBrand]: never;
+export type OutBytesHandle = bigint & {
+  readonly [OutBytesHandleBrand]: never;
 };

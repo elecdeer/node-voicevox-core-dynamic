@@ -2,7 +2,7 @@
  * オプション型定義
  */
 
-import type { VoicevoxAccelerationMode } from "./enums.js";
+import type { VoicevoxAccelerationMode, VoicevoxOnExistingVoiceModelId } from "./enums.js";
 
 /**
  * ONNX Runtimeロードオプション
@@ -38,6 +38,18 @@ export interface InitializeOptions {
 }
 
 /**
+ * 音声モデルのロードオプション
+ */
+export interface LoadVoiceModelOptions {
+  /**
+   * 同じIDの音声モデルが既に読み込まれていたときのふるまい
+   *
+   * @defaultValue `VoicevoxOnExistingVoiceModelId.Error`
+   */
+  onExisting?: VoicevoxOnExistingVoiceModelId;
+}
+
+/**
  * 音声合成オプション
  */
 export interface SynthesisOptions {
@@ -59,4 +71,39 @@ export interface TtsOptions {
    * @defaultValue true
    */
   enableInterrogativeUpspeak?: boolean;
+}
+
+/**
+ * AudioQueryの総フレーム数算出オプション
+ */
+export interface AudioQueryFrameLengthOptions {
+  /**
+   * 疑問文の調整を考慮する
+   *
+   * @defaultValue true
+   */
+  enableInterrogativeUpspeak?: boolean;
+}
+
+/**
+ * ストリーミング音声合成オプション
+ */
+export interface StreamingSynthesisOptions extends SynthesisOptions {
+  /**
+   * 音声合成を開始する位置（秒）
+   *
+   * フレーム数に換算した値が音声の総フレーム数以下の非負数でなければならない
+   *
+   * @defaultValue 0
+   */
+  startOffsetInSecs?: number;
+
+  /**
+   * 一度に生成する音声の長さ（秒）
+   *
+   * フレーム数に換算して1フレーム以上でなければならない
+   *
+   * @defaultValue 0.3
+   */
+  segmentLengthInSecs?: number;
 }

@@ -5,7 +5,11 @@
 import type { VoicevoxCoreFunctions } from "../ffi/functions.js";
 import { allocOutPointer, readOutPointer, readCString, NULL_POINTER } from "../ffi/native.js";
 import { VoicevoxResultCode } from "../types/enums.js";
-import type { SynthesizerHandle, VoiceModelFileHandle } from "../types/index.js";
+import type {
+  LoadVoiceModelOptions,
+  SynthesizerHandle,
+  VoiceModelFileHandle,
+} from "../types/index.js";
 import { VoicevoxError } from "../errors/voicevox-error.js";
 import { uuidBytesToString, uuidStringToBytes } from "../utils/uuid.js";
 
@@ -43,6 +47,7 @@ export async function openVoiceModelFile(
  * @param functions - VOICEVOX CORE FFI関数
  * @param synthesizer - シンセサイザハンドル
  * @param model - 音声モデルファイルハンドル
+ * @param options - ロードオプション
  * @returns Promise<void>
  * @throws {VoicevoxError} ロードに失敗した場合
  */
@@ -50,10 +55,15 @@ export async function loadVoiceModel(
   functions: VoicevoxCoreFunctions,
   synthesizer: SynthesizerHandle,
   model: VoiceModelFileHandle,
+  options?: LoadVoiceModelOptions,
 ): Promise<void> {
+  const onExisting =
+    options?.onExisting ?? functions.voicevox_make_default_load_voice_model_options();
+
   const resultCode = await functions.voicevox_synthesizer_load_voice_model.async(
     synthesizer,
     model,
+    onExisting,
   );
 
   if (resultCode !== VoicevoxResultCode.Ok) {
@@ -117,7 +127,7 @@ export function getVoiceModelMetasJson(
   const jsonStr = readCString(jsonPtr);
 
   // C側で確保されたメモリを解放
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return jsonStr;
 }
@@ -167,7 +177,7 @@ export function getSynthesizerMetasJson(
 
   const jsonStr = readCString(jsonPtr);
 
-  functions.voicevox_json_free(jsonPtr);
+  functions.voicevox_string_free(jsonPtr);
 
   return jsonStr;
 }

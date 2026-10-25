@@ -13,6 +13,9 @@
  *   （解放不要な静的文字列にのみ使用する）
  * - `bool_u8`: C ABIで1バイト構造体`{bool}`を値渡し/値返しする箇所を`u8`に
  *   loweringしたもの。JS側ではbooleanとして扱う
+ * - `audio_feature_slice`: 引数専用。32バイト構造体`VoicevoxAudioFeatureSlice`の値渡し。
+ *   JS側では`AUDIO_FEATURE_SLICE_SIZE`バイトのUint8Arrayとして扱い、
+ *   プラットフォームのABIに合わせてloweringする（`getStructPassingAbi`を参照）
  */
 export type FfiType =
   | "void"
@@ -21,9 +24,11 @@ export type FfiType =
   | "i32"
   | "u32"
   | "u64"
+  | "f64"
   | "pointer"
   | "cstring"
-  | "bool_u8";
+  | "bool_u8"
+  | "audio_feature_slice";
 
 /**
  * C関数シグネチャ
@@ -31,8 +36,6 @@ export type FfiType =
 export interface FunctionSignature {
   readonly return: FfiType;
   readonly arguments: readonly FfiType[];
-  /** 古いバージョンのvoicevox_coreに存在しないシンボル */
-  readonly optional?: boolean;
 }
 
 /**
@@ -175,7 +178,7 @@ export function unpackInitializeOptions(packed: bigint): {
  * `VoicevoxUserDictWord`構造体（32バイト）をポインタ渡し用にパックする
  *
  * レイアウト: [surface: char*][pronunciation: char*][accent_type: uintptr_t]
- *            [word_type: int32_t][priority: uint32_t]
+ *            [word_type: int32_t][priority: uint8_t][padding: 3B]
  *
  * 戻り値の`keepAlive`は構造体が参照する文字列Buffer。ネイティブ呼び出しが
  * 完了するまで参照を保持してGCを防ぐこと。
@@ -196,7 +199,56 @@ export function packUserDictWord(word: {
   struct.writeBigUInt64LE(ffi.getRawPointer(pronunciation), 8);
   struct.writeBigUInt64LE(BigInt(word.accentType), 16);
   struct.writeInt32LE(word.wordType, 24);
-  struct.writeUInt32LE(word.priority, 28);
+  struct.writeUInt8(word.priority, 28);
 
   return { struct, keepAlive: [surface, pronunciation] };
+}
+
+// ========================================
+// 16バイトを超える構造体の値渡し
+//
+// `VoicevoxAudioFeatureSlice`（32バイト）の値渡しはABIによって受け渡し方が異なる:
+// - AArch64 AAPCS64（Apple含む）/ Windows x64: 呼び出し元が確保したコピーへの
+//   ポインタを、通常の引数と同じ位置で渡す
+// - x86-64 SysV（Linux/macOS x64）: MEMORYクラスとしてスタックに積む。他の整数引数は
+//   構造体を飛ばしてレジスタ（最大6個）に割り当てられる
+// ========================================
+
+/**
+ * `VoicevoxAudioFeatureSlice`構造体のサイズ（バイト）
+ *
+ * レイアウト: [audio_feature: ptr][start_offset: uintptr_t][end: uintptr_t]
+ *            [end_is_inclusive: bool][clamp: bool][allow_start_exceeds_end: bool][padding: 5B]
+ */
+export const AUDIO_FEATURE_SLICE_SIZE = 32;
+
+/**
+ * x86-64 SysVで整数引数に使われるレジスタ数（rdi, rsi, rdx, rcx, r8, r9）
+ */
+export const SYSV_X64_INTEGER_REGISTER_COUNT = 6;
+
+/**
+ * 16バイトを超える構造体を値渡しするときの受け渡し方
+ *
+ * - `indirect`: 呼び出し元のコピーへのポインタとして渡す
+ * - `sysv-x64`: スタックに積む
+ */
+export type StructPassingAbi = "indirect" | "sysv-x64";
+
+/**
+ * 実行中のプラットフォームでの、16バイトを超える構造体の値渡しの方式を判定する
+ *
+ * @returns 方式。voicevox_coreの配布対象外のプラットフォームではundefined
+ */
+export function getStructPassingAbi(
+  arch: string = process.arch,
+  platform: string = process.platform,
+): StructPassingAbi | undefined {
+  if (arch === "arm64") {
+    return "indirect";
+  }
+  if (arch === "x64") {
+    return platform === "win32" ? "indirect" : "sysv-x64";
+  }
+  return undefined;
 }

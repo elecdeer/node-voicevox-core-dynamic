@@ -37,11 +37,7 @@ if (ffi === undefined) {
 const lib = new ffi.DynamicLibrary(workerData.libPath);
 const functions = {};
 for (const [name, signature] of Object.entries(workerData.signatures)) {
-  try {
-    functions[name] = lib.getFunction(name, signature);
-  } catch {
-    // 古いvoicevox_coreに存在しないシンボル。呼び出された場合のみエラーにする
-  }
+  functions[name] = lib.getFunction(name, signature);
 }
 parentPort.on("message", (message) => {
   try {
