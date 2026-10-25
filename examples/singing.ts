@@ -2,7 +2,6 @@
  * 歌唱音声合成の使用例
  *
  * 高レベルAPIを使った歌唱音声合成の例です。
- * v0.16.4以降で追加された歌唱音声合成機能を使用します。
  *
  * 使用例:
  * NODE_OPTIONS="--experimental-ffi" pnpm tsx examples/singing.ts
