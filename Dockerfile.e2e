@@ -2,7 +2,7 @@
 FROM debian:bookworm-slim AS downloader
 
 ARG TARGETARCH
-ARG VOICEVOX_CORE_VERSION=0.16.4
+ARG VOICEVOX_CORE_VERSION=0.17.1
 
 RUN apt-get update && apt-get install -y curl
 
