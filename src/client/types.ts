@@ -30,8 +30,9 @@ export interface StyleMeta {
    * singing_teacher: 歌唱音声合成用のクエリの作成が可能
    * frame_decode: 歌唱音声合成が可能
    * sing: 歌唱音声合成用のクエリの作成と歌唱音声合成が可能
+   * streaming_talk: 音声合成クエリの作成と通常ないしストリーミングでの音声合成が可能（talkの機能を包含）
    */
-  type: "talk" | "singing_teacher" | "frame_decode" | "sing";
+  type: "talk" | "singing_teacher" | "frame_decode" | "sing" | "streaming_talk";
   order: number;
 }
 
