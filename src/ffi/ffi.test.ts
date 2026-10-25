@@ -432,6 +432,46 @@ describe.runIf(C_COMPILER !== undefined && process.platform !== "win32")(
       expect(deleteCount()).toBe(deletedBefore + 1);
     });
 
+    test("streamingSynthesis: 1区間先を先読みし、途中でやめても先読みの完了後に破棄する", async () => {
+      const renderCount = mockAccessor("mock_render_count", "i32");
+      const renderAfterDeleteCount = mockAccessor("mock_render_after_delete_count", "i32");
+      const deleteCount = mockAccessor("mock_audio_feature_delete_count", "i32");
+      const renderedBefore = renderCount() as number;
+      const deletedBefore = deleteCount() as number;
+
+      const stream = streamingSynthesis(functions, synthesizer, AUDIO_QUERY, 3, {
+        segmentLengthInSecs: 2 / 93.75,
+      });
+      const header = await stream.next();
+      expect(header.value?.byteLength).toBe(WAV_HEADER_LENGTH);
+      const first = await stream.next();
+      expect([...(first.value ?? [])]).toEqual(mockPcm(0, 2, 3));
+
+      // 2つ目の区間を受け取る前にやめる
+      await stream.return();
+
+      // 消費したのは1区間だが、先読みした2区間目も生成済み
+      expect(renderCount()).toBe(renderedBefore + 2);
+      expect(renderAfterDeleteCount()).toBe(0);
+      expect(deleteCount()).toBe(deletedBefore + 1);
+    });
+
+    test("streamingSynthesis: 先読み中の生成の失敗は該当区間でVoicevoxErrorになる", async () => {
+      const deleteCount = mockAccessor("mock_audio_feature_delete_count", "i32");
+      const deletedBefore = deleteCount() as number;
+
+      // モックはスタイルID 254で先頭以外の区間のrenderを失敗させる
+      const stream = streamingSynthesis(functions, synthesizer, AUDIO_QUERY, 254, {
+        segmentLengthInSecs: 2 / 93.75,
+      });
+      await stream.next();
+      expect([...((await stream.next()).value ?? [])]).toEqual(mockPcm(0, 2, 254));
+      await expect(stream.next()).rejects.toMatchObject({
+        code: VoicevoxResultCode.RunModelError,
+      });
+      expect(deleteCount()).toBe(deletedBefore + 1);
+    });
+
     test("streamingSynthesis: 区切り方が不正な場合は中間表現を作らずRangeErrorになる", async () => {
       const deleteCount = mockAccessor("mock_audio_feature_delete_count", "i32");
       const deletedBefore = deleteCount() as number;

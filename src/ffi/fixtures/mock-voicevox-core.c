@@ -503,12 +503,27 @@ int32_t voicevox_audio_feature_slice_slice(VoicevoxAudioFeatureSlice audio_featu
   return 0;
 }
 
+/* このスタイルIDでは先頭以外の区間のrenderを失敗させる */
+#define MOCK_RENDER_FAILING_STYLE_ID 254
+
+static int render_count = 0;
+static int render_after_delete_count = 0;
+static const VoicevoxAudioFeature* last_deleted_audio_feature = NULL;
+
 /* PCMの代わりにフレームごとに [フレーム番号下位バイト, style_id下位バイト] を返す */
 int32_t voicevox_synthesizer_render(const void* synthesizer,
                                     VoicevoxAudioFeatureSlice audio_feature_slice,
                                     uintptr_t* output_pcm_length, uint8_t** output_pcm) {
   (void)synthesizer;
+  render_count++;
+  if (audio_feature_slice.audio_feature == last_deleted_audio_feature) {
+    render_after_delete_count++;
+    return 8;
+  }
   uintptr_t start = audio_feature_slice.start_offset;
+  if (audio_feature_slice.audio_feature->style_id == MOCK_RENDER_FAILING_STYLE_ID && start > 0) {
+    return 8;
+  }
   uintptr_t end = slice_end_exclusive(audio_feature_slice);
   if (end == start) {
     *output_pcm_length = 0;
@@ -530,6 +545,7 @@ static int audio_feature_delete_count = 0;
 void voicevox_audio_feature_delete(VoicevoxAudioFeature* audio_feature) {
   if (audio_feature != NULL) {
     audio_feature_delete_count++;
+    last_deleted_audio_feature = audio_feature;
   }
   free(audio_feature);
 }
@@ -676,3 +692,5 @@ uint32_t mock_last_word_priority(void) { return last_word_priority; }
 int32_t mock_last_on_existing(void) { return last_on_existing; }
 int32_t mock_empty_bytes_free_count(void) { return empty_bytes_free_count; }
 int32_t mock_audio_feature_delete_count(void) { return audio_feature_delete_count; }
+int32_t mock_render_count(void) { return render_count; }
+int32_t mock_render_after_delete_count(void) { return render_after_delete_count; }

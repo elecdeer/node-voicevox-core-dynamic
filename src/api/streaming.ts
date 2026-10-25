@@ -368,8 +368,12 @@ export function wavFromS16le(
  * 最初の要素はWAVの先頭部分（`WAV_HEADER_LENGTH`バイトのヘッダ）で、以降は
  * 16bit PCMを`segmentLengthInSecs`ずつ返す。すべての要素を連結するとWAVファイルになる。
  *
- * 中間表現は反復の終了時（`break`や例外を含む）に破棄される。反復を途中で放棄する場合は
- * `return()`を呼ぶこと（`for await`の`break`では自動で呼ばれる）。
+ * 消費側がチャンクを処理している間も合成を進められるよう、常に1区間先のPCMを
+ * 先読みして生成する。
+ *
+ * 中間表現は反復の終了時（`break`や例外を含む）に、先読み中の生成の完了を待ってから
+ * 破棄される。反復を途中で放棄する場合は`return()`を呼ぶこと（`for await`の`break`では
+ * 自動で呼ばれる）。
  *
  * @param functions - VOICEVOX CORE FFI関数
  * @param synthesizer - シンセサイザハンドル
@@ -408,6 +412,8 @@ export async function* streamingSynthesis(
   const audioFeature = await createAudioFeature(functions, synthesizer, audioQuery, styleId, {
     enableInterrogativeUpspeak,
   });
+  /** 先読み中の区間のPCM */
+  let prefetched: Promise<Uint8Array> | undefined;
   try {
     const fullFrames = getAudioFeatureLength(functions, audioFeature);
     const numChannels = audioQuery.outputStereo ? 2 : 1;
@@ -415,14 +421,35 @@ export async function* streamingSynthesis(
       Math.floor(audioQuery.outputSamplingRate / DEFAULT_SAMPLING_RATE) * numChannels;
     const pcmLength = (fullFrames - startOffsetFrames) * WAVE_SAMPLES_PER_FRAME * repeatCount * 2;
 
+    /**
+     * startから始まる区間の生成を開始する。区間がなければundefined
+     */
+    const startRender = (start: number): Promise<Uint8Array> | undefined => {
+      if (start >= fullFrames) {
+        return undefined;
+      }
+      const end = Math.min(start + segmentFrames, fullFrames);
+      const pcm = renderAudioFeature(functions, synthesizer, audioFeature, start, end);
+      // 先読み中に失敗しても、消費側がawaitするまではunhandled rejectionにしない
+      pcm.catch(() => {});
+      return pcm;
+    };
+
+    // ヘッダを処理している間に最初の区間の生成を始める
+    prefetched = startRender(startOffsetFrames);
     yield createWavHeader(pcmLength, audioQuery.outputSamplingRate, audioQuery.outputStereo);
 
-    for (let start = startOffsetFrames; start < fullFrames; start += segmentFrames) {
-      const end = Math.min(start + segmentFrames, fullFrames);
-      yield await renderAudioFeature(functions, synthesizer, audioFeature, start, end);
+    for (let start = startOffsetFrames; prefetched !== undefined; start += segmentFrames) {
+      const current = prefetched;
+      // Workerは直列に実行するため、currentの完了直後にこの区間の生成が始まる。
+      // 先読みを1区間に限ることで、消費側がチャンクを受け取った時点で未開始の呼び出しが
+      // キューに残らず、クライアントのclose()（実行中の呼び出しの完了を待つ）と競合しない
+      prefetched = startRender(start + segmentFrames);
+      yield await current;
     }
   } finally {
-    // renderの完了を待ってから破棄している（破棄後のアクセスはプロセスを異常終了させる）
+    // 破棄後のアクセスはプロセスを異常終了させるため、先読み中のrenderの完了を待つ
+    await prefetched?.catch(() => {});
     deleteAudioFeature(functions, audioFeature);
   }
 }
